@@ -1,0 +1,1 @@
+from .ver_1_0_0 import fake_data_generator_1_0_0

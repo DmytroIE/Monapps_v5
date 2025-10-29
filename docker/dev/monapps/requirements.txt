@@ -1,0 +1,11 @@
+Django==5.2
+celery~=5.5.2
+django-celery-beat~=2.8.0
+django-cors-headers~=4.7.0
+djangorestframework~=3.16.0
+paho-mqtt~=2.1.0
+psycopg[binary]~=3.2.7
+pyhumps~=3.8.0
+redis~=6.0.0
+scipy~=1.15.2
+

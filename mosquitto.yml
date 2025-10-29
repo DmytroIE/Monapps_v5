@@ -1,0 +1,17 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1884:1883"
+      - "8084:8083"
+    volumes: 
+      - ./docker/mosquitto/config/:/mosquitto/config/
+    networks:
+      - mosquitto_network
+
+networks:
+  mosquitto_network:
+    driver: bridge
+    name: mosquitto_network

@@ -1,0 +1,301 @@
+name: monapps5
+
+x-variables: &variables
+  ENV_STAGE: local
+  MONAPP_INSTANCE_ID: monapps_dev
+  MQTT_BROKER_HOST: mosquitto
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1884:1883"
+      - "8084:8083"
+    volumes: 
+      - ./docker/mosquitto/config/:/mosquitto/config/
+    networks:
+      - mosquitto_network
+
+  chirpstack:
+    image: chirpstack/chirpstack:4
+    container_name: chirpstack
+    command: -c /etc/chirpstack
+    restart: unless-stopped
+    volumes:
+      - ./docker/chirpstack/chirpstack:/etc/chirpstack
+    depends_on:
+      - mosquitto
+      - chirpstack-postgres
+      - chirpstack-redis
+    environment:
+      <<: *variables
+      REDIS_HOST: chirpstack-redis
+      POSTGRESQL_HOST: chirpstack-postgres
+    ports:
+      - "8080:8080"
+    networks:
+      - chirpstack_network
+      - mosquitto_network
+
+  chirpstack-gateway-bridge:
+    image: chirpstack/chirpstack-gateway-bridge:4
+    container_name: chirpstack-gateway-bridge
+    restart: unless-stopped
+    ports:
+      - "1700:1700/udp"
+    volumes:
+      - ./docker/chirpstack/chirpstack-gateway-bridge:/etc/chirpstack-gateway-bridge
+    depends_on:
+      - mosquitto
+    networks:
+      - chirpstack_network
+      - mosquitto_network
+  
+  chirpstack-postgres:
+    image: postgres:14-alpine
+    container_name: chirpstack-postgres
+    restart: unless-stopped
+    volumes:
+      - ./docker/chirpstack/postgresql/initdb:/docker-entrypoint-initdb.d
+      - chirpstack_postgresql_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=chirpstack
+      - POSTGRES_PASSWORD=chirpstack
+      - POSTGRES_DB=chirpstack
+    networks:
+      - chirpstack_network
+
+  chirpstack-redis:
+    image: redis:7-alpine
+    container_name: chirpstack-redis
+    restart: unless-stopped
+    command: redis-server --save 300 1 --save 60 100 --appendonly no
+    volumes:
+      - chirpstack_redis_data:/data
+    networks:
+      - chirpstack_network
+
+  monapps-main:
+    build:
+      context: .
+      dockerfile: docker/dev/monapps/Dockerfile
+    container_name: monapps-main
+    image: monapps-main
+    restart: unless-stopped
+    volumes:
+      - ./monapps/:/usr/src/monapps/
+      - monapps_postgres_socket:/postgres_socket
+      - monapps_main_migrations:/usr/src/
+    ports:
+      - "5000:8000"
+    environment:
+      <<: *variables
+      MONAPP_PROC_NAME: main
+    env_file:
+      - docker/dev/env/.env
+      - docker/dev/env/.db.env
+    depends_on:
+      - mosquitto
+      - monapps-db
+      - monapps-redis
+    networks:
+      - monapps_network
+      - mosquitto_network
+    healthcheck:
+      test: curl --fail -s http://localhost:8000$$HEALTH_CHECK_URL || exit 1
+      interval: 1m30s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: "local"
+      options:
+        max-size: "1m"
+        max-file: "2"
+        compress: "false"
+
+  monapps-sub:
+    build:
+      context: .
+      dockerfile: docker/dev/monapps/Dockerfile
+    container_name: monapps-sub
+    image: monapps-sub
+    restart: unless-stopped
+    volumes:
+      - ./monapps/:/usr/src/monapps/
+      - monapps_postgres_socket:/postgres_socket
+    environment:
+      <<: *variables
+      MONAPP_PROC_NAME: sub
+      MQTT_SUB_TOPIC: "rawdata/#"
+    env_file:
+      - docker/dev/env/.env
+      - docker/dev/env/.db.env
+    depends_on:
+      - mosquitto
+      - monapps-db
+      - monapps-redis
+      - monapps-main
+    networks:
+      - monapps_network
+      - mosquitto_network
+    entrypoint: "" # to avoid "migrate"
+    command: ["python", "manage.py", "run_mqtt_sub"]
+    logging:
+      driver: "local"
+      options:
+        max-size: "1m"
+        max-file: "2"
+        compress: "false"
+
+  monapps-beat:
+    build:
+      context: .
+      dockerfile: docker/dev/monapps/Dockerfile
+    container_name: monapps-beat
+    image: monapps-beat
+    restart: unless-stopped
+    volumes:
+      - ./monapps/:/usr/src/monapps/
+      - monapps_postgres_socket:/postgres_socket
+    environment:
+      <<: *variables
+    env_file:
+      - docker/dev/env/.env
+      - docker/dev/env/.db.env
+    depends_on:
+      - monapps-db
+      - monapps-redis
+      - monapps-main
+    networks:
+      - monapps_network
+    entrypoint: "" # to avoid "migrate"
+    command: ["python", "-m", "celery", "-A", "monapps", "beat", "-l", "info", "-S", "django"]
+    logging:
+      driver: "local"
+      options:
+        max-size: "1m"
+        max-file: "2"
+        compress: "false"
+
+  monapps-upd:
+    build:
+      context: .
+      dockerfile: docker/dev/monapps/Dockerfile
+    container_name: monapps-upd
+    image: monapps-upd
+    restart: unless-stopped
+    volumes:
+      - ./monapps/:/usr/src/monapps/
+      - monapps_postgres_socket:/postgres_socket
+    environment:
+      <<: *variables
+      MONAPP_PROC_NAME: upd
+    env_file:
+      - docker/dev/env/.env
+      - docker/dev/env/.db.env
+    depends_on:
+      - mosquitto
+      - monapps-db
+      - monapps-redis
+      - monapps-main
+      - monapps-beat
+    networks:
+      - monapps_network
+      - mosquitto_network
+    entrypoint: "" # to avoid "migrate"
+    command: ["python", "-m", "celery", "-A", "monapps", "worker", "-Q", "update", "-E", "-l", "debug", "--pool", "threads"]
+    logging:
+      driver: "local"
+      options:
+        max-size: "1m"
+        max-file: "2"
+        compress: "false"
+
+  monapps-eval:
+    build:
+      context: .
+      dockerfile: docker/dev/monapps/Dockerfile
+    container_name: monapps-eval
+    image: monapps-eval
+    restart: unless-stopped
+    volumes:
+      - ./monapps/:/usr/src/monapps/
+      - monapps_postgres_socket:/postgres_socket
+    environment:
+      <<: *variables
+      MONAPP_PROC_NAME: eval
+    env_file:
+      - docker/dev/env/.env
+      - docker/dev/env/.db.env
+    depends_on:
+      - mosquitto
+      - monapps-db
+      - monapps-redis
+      - monapps-main
+      - monapps-beat
+    networks:
+      - monapps_network
+      - mosquitto_network
+    entrypoint: "" # to avoid "migrate"
+    command: ["python", "-m", "celery", "-A", "monapps", "worker", "-Q", "evaluate", "-E", "-l", "debug", "--pool", "threads"]
+    logging:
+      driver: "local"
+      options:
+        max-size: "1m"
+        max-file: "2"
+        compress: "false"
+
+  monapps-db:
+    image:  timescale/timescaledb:2.20.3-pg16
+    container_name: monapps-db
+    restart: unless-stopped
+    volumes:
+      - monapps_postgres_data:/var/lib/postgresql/data/
+      - monapps_postgres_socket:/var/run/postgresql/
+    env_file:
+      - docker/dev/env/.db.env
+    networks:
+      - monapps_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER" ]
+      interval: 60s
+      timeout: 5s
+      retries: 5
+
+  monapps-redis:
+    image: redis:8.0.2-alpine
+    container_name: monapps-redis
+    restart: unless-stopped
+    volumes:
+      - monapps_redis_data:/data
+    networks:
+      - monapps_network
+    healthcheck:
+      test: [ "CMD", "redis-cli","ping" ]
+      interval: 1m20s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  chirpstack_postgresql_data:
+    name: chirpstack_postgresql_data
+  chirpstack_redis_data:
+    name: chirpstack_redis_data
+  monapps_postgres_data:
+    name: monapps_postgres_data
+  monapps_postgres_socket:
+    name: monapps_postgres_socket
+  monapps_redis_data:
+    name: monapps_redis_data
+  monapps_main_migrations:
+    name: monapps_main_migrations
+
+networks:
+  mosquitto_network:
+    name: mosquitto_network
+  chirpstack_network:
+    name: chirpstack_network
+  monapps_network:
+    name: monapps_network

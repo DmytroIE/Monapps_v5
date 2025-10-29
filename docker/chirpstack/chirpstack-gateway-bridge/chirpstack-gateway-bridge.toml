@@ -1,0 +1,23 @@
+# See https://www.chirpstack.io/gateway-bridge/install/config/ for a full
+# configuration example and documentation.
+
+[backend]
+type="semtech_udp"
+  [backend.semtech_udp]
+  udp_bind = "0.0.0.0:1700"
+
+[integration]
+marshaler="protobuf"
+
+
+  [integration.mqtt]
+  event_topic_template="gateway/{{ .GatewayID }}/event/{{ .EventType }}"
+  state_topic_template="gateway/{{ .GatewayID }}/state/{{ .StateType }}"
+  command_topic_template="gateway/{{ .GatewayID }}/command/#"
+
+  [integration.mqtt.auth]
+  type="generic"
+    [integration.mqtt.auth.generic]
+    servers=["tcp://mosquitto:1883"]
+    username=""
+    password=""

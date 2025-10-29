@@ -1,0 +1,794 @@
+[
+    {
+        "model": "django_celery_beat.intervalschedule",
+        "pk": 1,
+        "fields": {
+            "every": 10,
+            "period": "seconds"
+        }
+    },
+    {
+        "model": "django_celery_beat.intervalschedule",
+        "pk": 2,
+        "fields": {
+            "every": 30,
+            "period": "seconds"
+        }
+    },
+    {
+        "model": "django_celery_beat.intervalschedule",
+        "pk": 3,
+        "fields": {
+            "every": 1,
+            "period": "minutes"
+        }
+    },
+    {
+        "model": "django_celery_beat.intervalschedule",
+        "pk": 4,
+        "fields": {
+            "every": 5,
+            "period": "minutes"
+        }
+    },
+    {
+        "model": "django_celery_beat.crontabschedule",
+        "pk": 1,
+        "fields": {
+            "minute": "0",
+            "hour": "4",
+            "day_of_month": "*",
+            "month_of_year": "*",
+            "day_of_week": "*",
+            "timezone": "UTC"
+        }
+    },
+    {
+        "model": "django_celery_beat.periodictask",
+        "pk": 1,
+        "fields": {
+            "name": "Update periodic ds health",
+            "task": "update.periodic_ds_health",
+            "interval": 1,
+            "crontab": null,
+            "solar": null,
+            "clocked": null,
+            "args": "[]",
+            "kwargs": "{}",
+            "queue": null,
+            "exchange": null,
+            "routing_key": null,
+            "headers": "{}",
+            "priority": null,
+            "expires": null,
+            "expire_seconds": null,
+            "one_off": false,
+            "start_time": null,
+            "enabled": true,
+            "last_run_at": null,
+            "total_run_count": 0,
+            "date_changed": "2025-08-20T09:52:24.327Z",
+            "description": ""
+        }
+    },
+    {
+        "model": "django_celery_beat.periodictask",
+        "pk": 2,
+        "fields": {
+            "name": "Update devices",
+            "task": "update.devices",
+            "interval": 1,
+            "crontab": null,
+            "solar": null,
+            "clocked": null,
+            "args": "[]",
+            "kwargs": "{}",
+            "queue": null,
+            "exchange": null,
+            "routing_key": null,
+            "headers": "{}",
+            "priority": null,
+            "expires": null,
+            "expire_seconds": null,
+            "one_off": false,
+            "start_time": null,
+            "enabled": true,
+            "last_run_at": null,
+            "total_run_count": 0,
+            "date_changed": "2025-08-20T09:52:24.354Z",
+            "description": ""
+        }
+    },
+    {
+        "model": "django_celery_beat.periodictask",
+        "pk": 3,
+        "fields": {
+            "name": "Update assets",
+            "task": "update.assets",
+            "interval": 1,
+            "crontab": null,
+            "solar": null,
+            "clocked": null,
+            "args": "[]",
+            "kwargs": "{}",
+            "queue": null,
+            "exchange": null,
+            "routing_key": null,
+            "headers": "{}",
+            "priority": null,
+            "expires": null,
+            "expire_seconds": null,
+            "one_off": false,
+            "start_time": null,
+            "enabled": true,
+            "last_run_at": null,
+            "total_run_count": 0,
+            "date_changed": "2025-08-20T09:52:24.383Z",
+            "description": ""
+        }
+    },
+    {
+        "model": "django_celery_beat.periodictask",
+        "pk": 4,
+        "fields": {
+            "name": "celery.backend_cleanup",
+            "task": "celery.backend_cleanup",
+            "interval": null,
+            "crontab": 1,
+            "solar": null,
+            "clocked": null,
+            "args": "[]",
+            "kwargs": "{}",
+            "queue": null,
+            "exchange": null,
+            "routing_key": null,
+            "headers": "{}",
+            "priority": null,
+            "expires": null,
+            "expire_seconds": 43200,
+            "one_off": false,
+            "start_time": null,
+            "enabled": true,
+            "last_run_at": null,
+            "total_run_count": 0,
+            "date_changed": "2025-08-20T04:02:54.601Z",
+            "description": ""
+        }
+    },
+    {
+        "model": "django_celery_beat.periodictask",
+        "pk": 5,
+        "fields": {
+            "name": "App 1 Task",
+            "task": "evaluate.app_func",
+            "interval": 4,
+            "crontab": null,
+            "solar": null,
+            "clocked": null,
+            "args": "[]",
+            "kwargs": "{}",
+            "queue": null,
+            "exchange": null,
+            "routing_key": null,
+            "headers": "{}",
+            "priority": null,
+            "expires": null,
+            "expire_seconds": null,
+            "one_off": false,
+            "start_time": null,
+            "enabled": false,
+            "last_run_at": null,
+            "total_run_count": 0,
+            "date_changed": "2025-08-20T09:52:24.294Z",
+            "description": "A task attached to Application 1 'SV leak detection by two temps'"
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 1,
+        "fields": {
+            "name": "Status",
+            "agg_type": 2,
+            "var_type": 3,
+            "category_map": {
+                "0": "Undefined",
+                "1": "OK",
+                "2": "Warning",
+                "3": "Error"
+            },
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 2,
+        "fields": {
+            "name": "Current state",
+            "agg_type": 2,
+            "var_type": 3,
+            "category_map": {
+                "0": "Undefined",
+                "1": "OK",
+                "2": "Warning",
+                "3": "Error"
+            },
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 3,
+        "fields": {
+            "name": "Temperature",
+            "agg_type": 0,
+            "var_type": 0,
+            "category_map": {},
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 4,
+        "fields": {
+            "name": "Pressure",
+            "agg_type": 0,
+            "var_type": 0,
+            "category_map": {},
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 5,
+        "fields": {
+            "name": "Mass Flowrate",
+            "agg_type": 0,
+            "var_type": 0,
+            "category_map": {},
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 6,
+        "fields": {
+            "name": "Volumetric Flowrate",
+            "agg_type": 0,
+            "var_type": 0,
+            "category_map": {},
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 7,
+        "fields": {
+            "name": "Conductivity",
+            "agg_type": 0,
+            "var_type": 0,
+            "category_map": {},
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 8,
+        "fields": {
+            "name": "Mass",
+            "agg_type": 1,
+            "var_type": 0,
+            "category_map": {},
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 9,
+        "fields": {
+            "name": "Clicks",
+            "agg_type": 1,
+            "var_type": 1,
+            "category_map": {},
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.datatype",
+        "pk": 10,
+        "fields": {
+            "name": "Binary State",
+            "agg_type": 2,
+            "var_type": 3,
+            "category_map": {
+                "0": "OFF",
+                "1": "ON"
+            },
+            "is_totalizer": false
+        }
+    },
+    {
+        "model": "datatypes.measunit",
+        "pk": 1,
+        "fields": {
+            "name": "Degree Celsius",
+            "symbol": "*C",
+            "data_type": 3,
+            "k": 1.0,
+            "b": 0.0
+        }
+    },
+    {
+        "model": "datatypes.measunit",
+        "pk": 2,
+        "fields": {
+            "name": "Bar Gauge",
+            "symbol": "bar (g)",
+            "data_type": 4,
+            "k": 1.0,
+            "b": 0.0
+        }
+    },
+    {
+        "model": "datatypes.measunit",
+        "pk": 3,
+        "fields": {
+            "name": "Bar Abs",
+            "symbol": "bar (a)",
+            "data_type": 4,
+            "k": 1.0,
+            "b": 1.0
+        }
+    },
+    {
+        "model": "datatypes.measunit",
+        "pk": 4,
+        "fields": {
+            "name": "Kilos per Hour",
+            "symbol": "kg/h",
+            "data_type": 5,
+            "k": 1.0,
+            "b": 0.0
+        }
+    },
+    {
+        "model": "datatypes.measunit",
+        "pk": 5,
+        "fields": {
+            "name": "Kilos per Second",
+            "symbol": "kg/s",
+            "data_type": 5,
+            "k": 0.000277777777,
+            "b": 0.0
+        }
+    },
+    {
+        "model": "datatypes.measunit",
+        "pk": 6,
+        "fields": {
+            "name": "Cubic Meters per Hour",
+            "symbol": "m3/h",
+            "data_type": 6,
+            "k": 1.0,
+            "b": 0.0
+        }
+    },
+    {
+        "model": "datatypes.measunit",
+        "pk": 7,
+        "fields": {
+            "name": "Microsiemens per Centimeter",
+            "symbol": "uSm/cm",
+            "data_type": 7,
+            "k": 1.0,
+            "b": 0.0
+        }
+    },
+    {
+        "model": "datatypes.measunit",
+        "pk": 8,
+        "fields": {
+            "name": "Kilogram",
+            "symbol": "kg",
+            "data_type": 8,
+            "k": 1.0,
+            "b": 0.0
+        }
+    },
+    {
+        "model": "applications.apptype",
+        "pk": 1,
+        "fields": {
+            "name": "SV leak detection by two temps",
+            "description": "The system continuously monitors the outlet temperature of a safety valve to detect potential leakage. If the temperature exceeds a defined threshold for a specified time, the current state changes to WARNING. If the WARNING state persists beyond a set duration within a given period, the status also changes to WARNING. The algorithm also takes into account the value of the inlet temperature; if it drops below a certain threshold, then the system is considered OFF.",
+            "main_purp": "Leaking",
+            "func_name": "sv_leak_detection_by_two_temps"
+        }
+    },
+    {
+        "model": "applications.apptype",
+        "pk": 2,
+        "fields": {
+            "name": "Stall/block detection by two temps",
+            "description": "The system continuously monitors the inlet and outlet temperatures of any kind of heat exchanger (it can even be a piece of pipe that dissipates heat, causing some steam inside to condense) equipped with a steam trap. If the difference between these two temperatures exceeds a defined threshold for a specified time, it means that the condensate removal is improper (either the heat exchanger is in stall or the steam trap is blocked), and the current state changes to WARNING. If the WARNING state persists beyond a set duration within a given period, the status also changes to WARNING. The algorithm also takes into account the value of the inlet temperature; if it drops below a certain threshold, then the system is considered OFF.",
+            "main_purp": "Blocked",
+            "func_name": "stall_detection_by_two_temps"
+        }
+    },
+    {
+        "model": "applications.apptype",
+        "pk": 3,
+        "fields": {
+            "name": "Monitoring",
+            "description": "A pure monitoring application whose the only goal is to move the cursor according to the latets readings of its own datafeeds. Any number of datafeeds can be attached to it.",
+            "main_purp": "Monitoring",
+            "func_name": "monitoring"
+        }
+    },
+    {
+        "model": "applications.apptype",
+        "pk": 4,
+        "fields": {
+            "name": "Fake data generator",
+            "description": "Used as a generator of different random ‘status’ and ‘current state’ values. Also, it can sometimes generate exceptions to test the exception handling in the app function executor. It can be used for test purposes, particularly for testing the update algorithms.",
+            "main_purp": "None",
+            "func_name": "fake_data_generator"
+        }
+    },
+    {
+        "model": "applications.application",
+        "pk": 1,
+        "fields": {
+            "type": 1,
+            "time_resample": 60000,
+            "settings": {
+                "warn_cond": {
+                    "ok_cond": ">=",
+                    "warn_cond": ">=",
+                    "total_occs": 14400,
+                    "undef_cond": ">=",
+                    "num_of_ok_occs": 0,
+                    "num_of_warn_occs": 1440,
+                    "num_of_undef_occs": 0
+                },
+                "undef_cond": {
+                    "ok_cond": "==",
+                    "warn_cond": "==",
+                    "total_occs": 43200,
+                    "undef_cond": ">=",
+                    "num_of_ok_occs": 0,
+                    "num_of_warn_occs": 0,
+                    "num_of_undef_occs": 43200
+                },
+                "cs_trans_counts": 3,
+                "ok_from_warn_cond": {
+                    "ok_cond": ">=",
+                    "warn_cond": "==",
+                    "total_occs": 28800,
+                    "undef_cond": ">=",
+                    "num_of_ok_occs": 1440,
+                    "num_of_warn_occs": 0,
+                    "num_of_undef_occs": 0
+                },
+                "temp_in_threshold": 100.0,
+                "ok_from_undef_cond": {
+                    "ok_cond": ">=",
+                    "warn_cond": "<=",
+                    "total_occs": 360,
+                    "undef_cond": ">=",
+                    "num_of_ok_occs": 60,
+                    "num_of_warn_occs": 10,
+                    "num_of_undef_occs": 0
+                },
+                "temp_out_threshold": 70.0
+            },
+            "state": {},
+            "errors": {},
+            "warnings": {},
+            "cursor_ts": 0,
+            "is_enabled": false,
+            "invoc_interval": 4,
+            "catch_up_interval": 2,
+            "is_catching_up": false,
+            "func_version": "1.0.0",
+            "status": null,
+            "curr_state": null,
+            "last_status_update_ts": null,
+            "last_curr_state_update_ts": null,
+            "status_use": 1,
+            "curr_state_use": 1,
+            "time_status_stale": 1296000000,
+            "time_curr_state_stale": 1500000,
+            "is_status_stale": false,
+            "is_curr_state_stale": false,
+            "task": 5,
+            "health": 0,
+            "time_health_error": 960000,
+            "parent": 1,
+            "created_ts": 1755464180716
+        }
+    },
+    {
+        "model": "applications.application",
+        "pk": 2,
+        "fields": {
+            "type": 2,
+            "time_resample": 60000,
+            "settings": {
+                "warn_cond": {
+                    "ok_cond": ">=",
+                    "warn_cond": ">=",
+                    "total_occs": 14400,
+                    "undef_cond": ">=",
+                    "num_of_ok_occs": 0,
+                    "num_of_warn_occs": 1440,
+                    "num_of_undef_occs": 0
+                },
+                "delta_temp": 10.0,
+                "undef_cond": {
+                    "ok_cond": "==",
+                    "warn_cond": "==",
+                    "total_occs": 43200,
+                    "undef_cond": ">=",
+                    "num_of_ok_occs": 0,
+                    "num_of_warn_occs": 0,
+                    "num_of_undef_occs": 43200
+                },
+                "cs_trans_counts": 3,
+                "ok_from_warn_cond": {
+                    "ok_cond": ">=",
+                    "warn_cond": "==",
+                    "total_occs": 28800,
+                    "undef_cond": ">=",
+                    "num_of_ok_occs": 1440,
+                    "num_of_warn_occs": 0,
+                    "num_of_undef_occs": 0
+                },
+                "temp_in_threshold": 50.0,
+                "ok_from_undef_cond": {
+                    "ok_cond": ">=",
+                    "warn_cond": "<=",
+                    "total_occs": 360,
+                    "undef_cond": ">=",
+                    "num_of_ok_occs": 60,
+                    "num_of_warn_occs": 10,
+                    "num_of_undef_occs": 0
+                }
+            },
+            "state": {},
+            "errors": {},
+            "warnings": {},
+            "cursor_ts": 0,
+            "is_enabled": false,
+            "invoc_interval": 4,
+            "catch_up_interval": 2,
+            "is_catching_up": false,
+            "func_version": "1.0.0",
+            "status": null,
+            "curr_state": null,
+            "last_status_update_ts": null,
+            "last_curr_state_update_ts": null,
+            "status_use": 1,
+            "curr_state_use": 1,
+            "time_status_stale": 1296000000,
+            "time_curr_state_stale": 1500000,
+            "is_status_stale": false,
+            "is_curr_state_stale": false,
+            "task": null,
+            "health": 0,
+            "time_health_error": 960000,
+            "parent": 2,
+            "created_ts": 1755465376175
+        }
+    },
+    {
+        "model": "assets.asset",
+        "pk": 1,
+        "fields": {
+            "name": "Safety valve 1",
+            "description": "",
+            "custom_fields": {
+                "model": "SV607",
+                "vendor": "Spirax Sarco",
+                "inletDn": 65,
+                "outletDn": 100,
+                "setPressure": 7.5
+            },
+            "asset_type": "Safety valve",
+            "status": null,
+            "curr_state": null,
+            "last_status_update_ts": null,
+            "last_curr_state_update_ts": null,
+            "status_use": 1,
+            "curr_state_use": 1,
+            "health": 0,
+            "next_upd_ts": 0,
+            "reeval_fields": [],
+            "parent": 2
+        }
+    },
+    {
+        "model": "assets.asset",
+        "pk": 2,
+        "fields": {
+            "name": "Heating module 1",
+            "description": "",
+            "custom_fields": {
+                "model": "EasiHeat",
+                "capacity": 250,
+                "manufacturer": "Spirax Sarco"
+            },
+            "asset_type": "Heating package",
+            "status": null,
+            "curr_state": null,
+            "last_status_update_ts": null,
+            "last_curr_state_update_ts": null,
+            "status_use": 1,
+            "curr_state_use": 1,
+            "health": 0,
+            "next_upd_ts": 0,
+            "reeval_fields": [],
+            "parent": 3
+        }
+    },
+    {
+        "model": "assets.asset",
+        "pk": 3,
+        "fields": {
+            "name": "Workshop 1",
+            "description": "",
+            "custom_fields": {},
+            "asset_type": "Workshop",
+            "status": null,
+            "curr_state": null,
+            "last_status_update_ts": null,
+            "last_curr_state_update_ts": null,
+            "status_use": 1,
+            "curr_state_use": 1,
+            "health": 0,
+            "next_upd_ts": 0,
+            "reeval_fields": [],
+            "parent": null
+        }
+    },
+    {
+        "model": "datafeeds.datafeed",
+        "pk": 1,
+        "fields": {
+            "name": "Temp in",
+            "parent": 1,
+            "datastream": 1,
+            "data_type": 3,
+            "meas_unit": 1,
+            "df_type": "None",
+            "is_rest_on": true,
+            "is_aug_on": true,
+            "aug_policy": 1,
+            "ts_to_start_with": 0,
+            "last_reading_ts": null
+        }
+    },
+    {
+        "model": "datafeeds.datafeed",
+        "pk": 2,
+        "fields": {
+            "name": "Temp out",
+            "parent": 1,
+            "datastream": 2,
+            "data_type": 3,
+            "meas_unit": 1,
+            "df_type": "None",
+            "is_rest_on": true,
+            "is_aug_on": true,
+            "aug_policy": 1,
+            "ts_to_start_with": 0,
+            "last_reading_ts": null
+        }
+    },
+    {
+        "model": "datafeeds.datafeed",
+        "pk": 3,
+        "fields": {
+            "name": "Current state",
+            "parent": 1,
+            "datastream": null,
+            "data_type": 2,
+            "meas_unit": null,
+            "df_type": "Current state",
+            "is_rest_on": true,
+            "is_aug_on": true,
+            "aug_policy": 1,
+            "ts_to_start_with": 0,
+            "last_reading_ts": null
+        }
+    },
+    {
+        "model": "datafeeds.datafeed",
+        "pk": 4,
+        "fields": {
+            "name": "Status",
+            "parent": 1,
+            "datastream": null,
+            "data_type": 1,
+            "meas_unit": null,
+            "df_type": "Status",
+            "is_rest_on": true,
+            "is_aug_on": true,
+            "aug_policy": 1,
+            "ts_to_start_with": 0,
+            "last_reading_ts": null
+        }
+    },
+    {
+        "model": "datastreams.datastream",
+        "pk": 1,
+        "fields": {
+            "name": "temp1",
+            "data_type": 3,
+            "meas_unit": 1,
+            "is_rbe": false,
+            "parent": 1,
+            "time_update": 60000,
+            "time_change": 240000,
+            "till_now_margin": 0,
+            "is_enabled": false,
+            "errors": {},
+            "warnings": {},
+            "health": 0,
+            "msg_health": 0,
+            "nd_health": 0,
+            "time_nd_health_error": 960000,
+            "health_next_eval_ts": 0,
+            "max_rate_of_change": 1.0,
+            "max_plausible_value": 250.0,
+            "min_plausible_value": -50.0,
+            "ts_to_start_with": 0,
+            "last_valid_reading_ts": null,
+            "created_ts": 1755458127819
+        }
+    },
+    {
+        "model": "datastreams.datastream",
+        "pk": 2,
+        "fields": {
+            "name": "temp2",
+            "data_type": 3,
+            "meas_unit": 1,
+            "is_rbe": false,
+            "parent": 1,
+            "time_update": 60000,
+            "time_change": 240000,
+            "till_now_margin": 0,
+            "is_enabled": false,
+            "errors": {},
+            "warnings": {},
+            "health": 0,
+            "msg_health": 0,
+            "nd_health": 0,
+            "time_nd_health_error": 960000,
+            "health_next_eval_ts": 0,
+            "max_rate_of_change": 1.0,
+            "max_plausible_value": 250.0,
+            "min_plausible_value": -50.0,
+            "ts_to_start_with": 0,
+            "last_valid_reading_ts": null,
+            "created_ts": 1755458247195
+        }
+    },
+    {
+        "model": "devices.device",
+        "pk": 1,
+        "fields": {
+            "name": "Diagn kit 1",
+            "dev_ui": "0123456789abcdef",
+            "description": "A twin-temp Enless diagnostic kit",
+            "characteristics": {},
+            "errors": {},
+            "warnings": {},
+            "health": 1,
+            "chld_health": 1,
+            "msg_health": 0,
+            "next_upd_ts": 0,
+            "parent": null
+        }
+    }
+]
