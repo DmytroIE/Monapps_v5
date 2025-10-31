@@ -31,16 +31,13 @@ class PeriodicDsHealthUpdater:
         if len(ds_qs) == 0:
             return
 
-        logger.debug("Process datastreams")
         for ds in ds_qs:
             self.update_ds(ds)
 
-        logger.debug("Save devices")
         for dev in self.dev_map.values():
             dev.save(update_fields=dev.update_fields)
 
     def update_ds(self, ds):
-        logger.debug(f" - process ds {ds.pk} {ds.name}")
         dev = ds.parent
         if dev.dev_ui not in self.dev_map:
             self.dev_map[dev.dev_ui] = dev
@@ -73,7 +70,7 @@ class PeriodicDsHealthUpdater:
         if not set_attr_if_cond(health, "!=", ds, "health"):
             return
 
-        logger.debug(f" - ds {ds.pk} {ds.name} health changed -> {health}")
+        logger.debug(f"Ds {ds.pk} {ds.name}: health changed to {health}")
 
-        if enqueue_update(dev, now_ts):
-            logger.debug(f" - dev {dev.pk} update enqueued for {dev.next_upd_ts}")
+        enqueue_update(dev, now_ts)
+        logger.debug(f"Enqueue parent 'device {dev.pk} update for {dev.next_upd_ts}")

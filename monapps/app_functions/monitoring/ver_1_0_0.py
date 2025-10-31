@@ -15,8 +15,6 @@ def function(
     insigts, it just moves the cursor in order to evaluate the app health.
     """
 
-    logger.info("'monitoring_1_0_0' starts executing...")
-
     derived_df_reading_map: DerivedDfReadingMap = {}
     update_map: UpdateMap = {}
 

@@ -7,12 +7,12 @@ from django.db import models
 from django.conf import settings
 
 from common.constants import reeval_fields
-from utils.db_field_utils import get_parent_full_id, get_instance_full_id
+from utils.db_field_utils import get_instance_full_id
 from utils.ts_utils import create_dt_from_ts_ms, create_now_ts_ms
 
 # from services.alarm_log import add_to_alarm_log
 from utils.update_utils import enqueue_update, update_reeval_fields
-from services.mqtt_publisher import mqtt_publisher
+from services.mqtt_publisher import mqtt_publisher, publish_with_delay
 
 logger = logging.getLogger("#abs_classes")
 
@@ -39,8 +39,19 @@ class PublishingOnSaveModel(models.Model):
     # TODO: overload the 'delete' method as well
 
     def save(self, **kwargs):
-        logger.debug(f"<{get_instance_full_id(self)}>: Saving")
         message_type = "c" if self.pk is None else "u"
+        # checking if the parent was changed
+        # https://gist.github.com/schinckel/1591723
+        has_parent_changed = False
+        old_parent = None
+        if self.pk:
+            old_version = self.__class__.objects.get(pk=self.pk)
+            if old_version.parent != self.parent:
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!parent changed")
+                print(f"old parent: {old_version.parent}, new parent: {self.parent}")
+                has_parent_changed = True
+                old_parent = old_version.parent
+
         super().save(**kwargs)
         # 'update_fields' is used to collect the names of the fields that were changed.
         # It will then be used in the 'save' method and reset.
@@ -58,7 +69,6 @@ class PublishingOnSaveModel(models.Model):
         # will be enqueued here. Therefore, don't save instances without
         # explicit 'update_fields' parameter.
         update_fields = kwargs.get("update_fields")
-        logger.debug(f"<{get_instance_full_id(self)}>: update_fields: {update_fields}")
         update_fields_length = 0
         try:
             if update_fields is not None:
@@ -75,8 +85,13 @@ class PublishingOnSaveModel(models.Model):
             if len(fields_to_publish) > 0:
                 self.publish_on_mqtt(fields_to_publish, message_type)
         else:
+            logger.debug(f"{get_instance_full_id(self)}: Updating from the bulk 'save' method")
             self.publish_on_mqtt(set(), message_type)
-            self.total_parent_update()
+            if self.parent is not None:
+                self.total_parent_update(self.parent)
+
+        if has_parent_changed:
+            self.total_parent_update(old_parent)
 
         # reset after all the processing
         self.update_fields = set()
@@ -87,13 +102,14 @@ class PublishingOnSaveModel(models.Model):
 
         mqtt_pub_dict = self.create_mqtt_pub_dict(fields_to_publish, message_type)
 
-        topic = (
-            f"procdata/{settings.MONAPP_INSTANCE_ID}/{self._meta.model_name}/{self.pk}"
-        )
+        topic = f"procdata/{settings.MONAPP_INSTANCE_ID}/{self._meta.model_name}/{self.pk}"
         payload_str = json.dumps(mqtt_pub_dict)
-        mqtt_publisher.publish(topic, payload_str, qos=0)
+
+        # delay to ensure that all changes are saved in the db
+        publish_with_delay(topic, payload_str, qos=0, delay_ms=50)
+
         # add_to_alarm_log("INFO", "Changes published", instance=self)
-        logger.info(f"<{get_instance_full_id(self)}>: Changes published on MQTT")
+        logger.info(f"{get_instance_full_id(self)}: Changes published on MQTT")
 
     def delete(self, using=None, keep_parents=False):
 
@@ -109,7 +125,8 @@ class PublishingOnSaveModel(models.Model):
         del_result = super().delete(using, keep_parents)
         self.id = id
         self.publish_on_mqtt(set(), "d")
-        self.total_parent_update()
+        if self.parent is not None:
+            self.total_parent_update(self.parent)
 
         if self._meta.label not in del_result[1] or del_result[1][self._meta.label] == 0:  # no rows deleted
             return del_result
@@ -132,23 +149,16 @@ class PublishingOnSaveModel(models.Model):
 
         return mqtt_pub_dict
 
-    def total_parent_update(self):
-        if self.parent is None:
-            return
-        logger.debug(
-            f"<{get_instance_full_id(self)}>: Updating parent from the bulk 'save' method"
-        )
-        if hasattr(self.parent, "reeval_fields"):  # if it is an asset, all 'reeval_fields' should be reevaluated
-            update_reeval_fields(self.parent, reeval_fields)
-            logger.debug(
-                f"<{get_instance_full_id(self)}>: To be reevaluated: {reeval_fields}"
-            )
-        if hasattr(self.parent, "next_upd_ts"):
-            enqueue_update(self.parent, create_now_ts_ms(), coef=0.2)
-            logger.debug(
-                f"<{get_instance_full_id(self)}>: Update enqueued for {self.parent.next_upd_ts}"
-            )
-        self.parent.save(update_fields=self.parent.update_fields)
+    def total_parent_update(self, parent):
+        parent_full_id = get_instance_full_id(parent)
+        logger.debug(f"{parent_full_id}: Updating parent from the bulk 'save' method")
+        if hasattr(parent, "reeval_fields"):  # if it is an asset, all 'reeval_fields' should be reevaluated
+            update_reeval_fields(parent, reeval_fields)
+            logger.debug(f"{parent_full_id}: To be reevaluated: {reeval_fields}")
+        if hasattr(parent, "next_upd_ts"):
+            enqueue_update(parent, create_now_ts_ms(), coef=0.2)
+            logger.debug(f"{parent_full_id}: Update enqueued for {parent.next_upd_ts}")
+        parent.save(update_fields=parent.update_fields)
 
 
 class AnyDsReading(models.Model):

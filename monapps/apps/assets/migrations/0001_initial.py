@@ -2,6 +2,7 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
+import apps.assets.models
 
 
 class Migration(migrations.Migration):
@@ -28,7 +29,7 @@ class Migration(migrations.Migration):
                 ('curr_state_use', models.IntegerField(choices=[(0, 'Dont Use'), (1, 'As Is'), (2, 'As Warning'), (3, 'As Error If All')], default=2)),
                 ('health', models.IntegerField(choices=[(0, 'Undefined'), (1, 'Ok'), (2, 'Warning'), (3, 'Error')], default=0)),
                 ('next_upd_ts', models.BigIntegerField(default=0)),
-                ('reeval_fields', models.JSONField(blank=True, default=list)),
+                ('reeval_fields', models.JSONField(blank=True, default=apps.assets.models.get_reeval_fields)),
                 ('parent', models.ForeignKey(blank=True, default=None, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assets', related_query_name='asset', to='assets.asset')),
             ],
             options={

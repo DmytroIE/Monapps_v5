@@ -19,7 +19,6 @@ def function(
     It's a legacy function that is left just for demo purposes.
     Don't use it in production.
     """
-    logger.info("'stall_detection_by_two_temps_0_0_1' starts executing...")
 
     temp_in_df = native_df_map["Temp inlet"]
     temp_out_df = native_df_map["Temp outlet"]

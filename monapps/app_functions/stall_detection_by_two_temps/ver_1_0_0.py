@@ -25,8 +25,6 @@ def function(
     app: Application, native_df_map: dict[str, Datafeed], derived_df_map: dict[str, Datafeed]
 ) -> AppFuncReturn:
 
-    logger.info("'stall_detection_by_two_temps_1_0_0' starts executing...")
-
     # get datafeeds
     temp_in_df = native_df_map["Temp in"]
     temp_out_df = native_df_map["Temp out"]
@@ -183,7 +181,7 @@ def function(
             cs_dfr = DfReading(time=rts, value=curr_state, datafeed=curr_state_df, restored=False)
             derived_df_reading_map[CURR_STATE_FIELD_NAME]["new_df_readings"].append(cs_dfr)
 
-            logger.debug(f"Curr State Automata state = {cs_automata.state}")
+            # logger.debug(f"Curr State Automata state = {cs_automata.state}")
 
             # -6-2- update interval maps
             all_occs.append_occurrence(curr_state.value)  # NOTE: 'value' to serialize JSON
@@ -199,7 +197,7 @@ def function(
             st_dfr = DfReading(time=rts, value=status, datafeed=status_df, restored=False)
             derived_df_reading_map[STATUS_FIELD_NAME]["new_df_readings"].append(st_dfr)
 
-            logger.debug(f"Status Automata state = {st_automata.state}")
+            # logger.debug(f"Status Automata state = {st_automata.state}")
 
         # -7-  update app output
         update_map["cursor_ts"] = end_rts

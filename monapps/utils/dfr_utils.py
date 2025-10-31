@@ -1,123 +1,17 @@
 import logging
 from scipy.interpolate import PchipInterpolator
-from typing import Callable, List
+from typing import Sequence
 
-from apps.datastreams.models import Datastream
 from apps.datafeeds.models import Datafeed
 from apps.dsreadings.models import DsReading, NoDataMarker
 from apps.dfreadings.models import DfReading
 
 from common.complex_types import IndDfReadingMap
-from common.constants import DataAggrTypes, NotToUseDfrTypes, VariableTypes, AugmentationPolicy
-from utils.ts_utils import ceil_timestamp, create_grid, create_now_ts_ms
-from utils.alarm_utils import add_to_alarm_log
+from common.constants import DataAggrTypes, NotToUseDfrTypes
+from utils.ts_utils import ceil_timestamp, create_grid
+
 
 logger = logging.getLogger("#dfr_utils")
-
-
-def create_df_readings(
-    ds_readings: list[DsReading],
-    nat_df: Datafeed,
-    start_rts: int,
-) -> tuple[List[DfReading], int | None, int]:
-    """
-    Creates datafeed readings from a set of datastream readings.
-    The variable 'ds_readings' should represent readings whose timestamps
-    are > 'start_rts' ('rts' means a 'rounded timestamp').
-    Returns:
-    'df_readings' - a list of created df readings.
-    'last_dfr_rts' - a timestamp of a very last df reading created by a resample function (usually not saved).
-    'rts_to_start_with_next_time' - a timestamp to start with next time.
-    It is usally a timestamp before the first 'unused'/'unclosed' reading.
-    """
-
-    df_readings = []
-    df_reading_map = {}
-    ds = nat_df.datastream
-    default_tuple = ([], None, start_rts)
-    if ds is None:
-        add_to_alarm_log(
-            "WARNING",
-            f"create_df_readings: datastream is None for datafeed {nat_df.pk}",
-            instance=nat_df,
-        )
-        return default_tuple
-    time_resample = nat_df.time_resample
-
-    if ds.data_type.var_type == VariableTypes.CONTINUOUS and ds.data_type.agg_type == DataAggrTypes.AVG:
-        # temperature, pressure etc
-        if len(ds_readings) == 0:
-            return default_tuple
-        df_reading_map = resample_ds_readings(ds_readings, nat_df, time_resample, find_average)
-        if nat_df.is_rest_on:
-            if ds.time_change is None:
-                raise ValueError("time_change cannot be None for CONTINUOUS/AVG if restoration is on")
-            df_reading_map = restore_continuous_avg(df_reading_map, nat_df, time_resample, ds.time_change, start_rts)
-
-    elif (
-        ds.data_type.var_type == VariableTypes.CONTINUOUS or ds.data_type.var_type == VariableTypes.DISCRETE
-    ) and ds.data_type.agg_type == DataAggrTypes.SUM:
-        if len(ds_readings) == 0 and (not nat_df.is_aug_on or nat_df.aug_policy != AugmentationPolicy.TILL_NOW):
-            return default_tuple
-        if not ds.data_type.is_totalizer:
-            if ds.is_rbe and nat_df.is_aug_on:
-                df_reading_map = resample_and_augment_ds_readings(
-                    ds_readings, nat_df, ds, time_resample, start_rts, find_sum
-                )
-            else:
-                df_reading_map = resample_ds_readings(ds_readings, nat_df, time_resample, find_sum)
-        else:
-            if ds.is_rbe and nat_df.is_aug_on:
-                df_reading_map = resample_and_augment_ds_readings(
-                    ds_readings, nat_df, ds, time_resample, start_rts, find_last_value
-                )
-            else:
-                df_reading_map = resample_ds_readings(ds_readings, nat_df, time_resample, find_last_value)
-                if nat_df.is_rest_on:
-                    if ds.time_change is None:
-                        raise ValueError("time_change cannot be None for CONTINUOUS/AVG if restoration is on")
-                    df_reading_map = restore_totalizer(df_reading_map, nat_df, time_resample, ds.time_change, start_rts)
-
-    elif ds.data_type.agg_type == DataAggrTypes.LAST:  # for all var_types
-        if len(ds_readings) == 0 and (not nat_df.is_aug_on or nat_df.aug_policy != AugmentationPolicy.TILL_NOW):
-            return default_tuple
-        if ds.is_rbe and nat_df.is_aug_on:
-            df_reading_map = resample_and_augment_ds_readings(
-                ds_readings, nat_df, ds, time_resample, start_rts, find_last_value
-            )
-        else:
-            df_reading_map = resample_ds_readings(ds_readings, nat_df, time_resample, find_last_value)
-
-    else:
-        raise ValueError(
-            f"""No proper resampling procedure for var type {ds.data_type.var_type}
-                         with agg type {ds.data_type.agg_type}"""
-        )
-
-    # now it is necessary to save in the database all the df readings except 'not_to_use' readings
-    df_reading_rtss = sorted(df_reading_map)
-
-    last_dfr_rts = None
-    rts_to_start_with_next_time = start_rts
-
-    for idx, rts in enumerate(df_reading_rtss):
-        if df_reading_map[rts].not_to_use is not None:
-            if df_reading_map[rts].not_to_use == NotToUseDfrTypes.SPLINE_UNCLOSED:
-                if len(df_reading_rtss) == 1:
-                    # 'df_reading_rtss[idx - 1]' below can give bizarre results if len == 1
-                    pass
-                else:
-                    rts_to_start_with_next_time = df_reading_rtss[idx - 1]
-            else:
-                rts_to_start_with_next_time = rts - time_resample
-            break
-        df_readings.append(df_reading_map[rts])
-        rts_to_start_with_next_time = rts
-
-    if len(df_reading_rtss) > 0:  # almost impossible that len(df_reading_rtss) == 0 if we got to this point
-        last_dfr_rts = max(df_reading_rtss)  # it is the ts of the last (unclosed) df reading
-
-    return df_readings, last_dfr_rts, rts_to_start_with_next_time
 
 
 def find_average(ds_readings: list[DsReading]) -> float | None:
@@ -151,15 +45,21 @@ def find_last_value(ds_readings: list[DsReading]) -> float | int | None:
     return last_value
 
 
+aggr_map = {DataAggrTypes.AVG: find_average, DataAggrTypes.SUM: find_sum, DataAggrTypes.LAST: find_last_value}
+
+
 def resample_ds_readings(
-    ds_readings: list[DsReading], df: Datafeed, time_resample: int, agg_func: Callable[[list[DsReading]], float | None]
+    sorted_ds_readings: list[DsReading],
+    df: Datafeed,
+    time_resample: int,
+    aggr_type: DataAggrTypes,
 ) -> IndDfReadingMap:
     """
     A generic function, can be used with different aggregation functions.
     """
 
-    sorted_ds_readings = sorted(ds_readings, key=lambda x: x.time)
     df_reading_map = {}
+    aggr_func = aggr_map[aggr_type]
 
     last_df_reading_rts = 0
     for r in sorted_ds_readings:
@@ -171,9 +71,9 @@ def resample_ds_readings(
         last_df_reading_rts = rts
 
     for rts in df_reading_map:
-        agg_value = agg_func(df_reading_map[rts])
-        if agg_value is not None:
-            dfr = DfReading(time=rts, value=agg_value, datafeed=df, restored=False)
+        aggr_value = aggr_func(df_reading_map[rts])
+        if aggr_value is not None:
+            dfr = DfReading(time=rts, value=aggr_value, datafeed=df, restored=False)
             df_reading_map[rts] = dfr
             # injection of 'not_to_use' property
             if rts == last_df_reading_rts:
@@ -183,145 +83,108 @@ def resample_ds_readings(
 
 
 def resample_and_augment_ds_readings(
-    ds_readings: list[DsReading],
+    sorted_dsrs_and_ndms: Sequence[DsReading | NoDataMarker],
     df: Datafeed,
-    ds: Datastream,
     time_resample: int,
     start_rts: int,
-    agg_func: Callable[[list[DsReading]], float | int | None],
+    end_rts: int,
+    aggr_type: DataAggrTypes,
+    is_nd_period_open: bool,
+    dfr_at_start_ts: DfReading | None = None,
 ) -> IndDfReadingMap:
-    """
-    Assumes that 'df.is_aug_on' is True
-    Timestamps of the instances in 'ds_readings' should be > 'start_rts'
-    """
 
-    if len(ds_readings) == 0 and df.aug_policy != AugmentationPolicy.TILL_NOW:
+    if start_rts >= end_rts:
         return {}
 
     df_reading_map = {}
+    aggr_func = aggr_map[aggr_type]
 
-    nodata_markers = list(NoDataMarker.objects.filter(datastream__id=ds.pk, time__gt=start_rts).order_by("time"))
-
-    # as the sort provided by 'sorted' is stable,
-    # then if both DsReading and NoDataMarker instances have the same timestamps,
-    # then the NoDataMarker instance will be the last after the sorting
-    sorted_ds_readings_and_nodata_markers = sorted(ds_readings + nodata_markers, key=lambda x: x.time)
-
-    last_df_reading_rts = None  # it may happen that there are no ds readings in 'ds_readings'
-    for r in sorted_ds_readings_and_nodata_markers:
+    for r in sorted_dsrs_and_ndms:
         rts = ceil_timestamp(r.time, time_resample)
         if rts not in df_reading_map:
             df_reading_map[rts] = []
 
         df_reading_map[rts].append(r)
-        if isinstance(r, DsReading):
-            last_df_reading_rts = rts
 
-    last_dfr_from_prev_period = DfReading.objects.filter(datafeed__id=df.pk, time=start_rts).order_by("time").first()
+    # also, we need the previous value to continue the series
     # add this dfr temporarily, it will be removed at the end of the function
-    if last_dfr_from_prev_period is not None:
-        df_reading_map[start_rts] = last_dfr_from_prev_period
+    if dfr_at_start_ts is not None:
+        df_reading_map[start_rts] = dfr_at_start_ts
 
-    else:  # for SUM + TILL_NOW it is necessary to check if there is a NoDataMarker at the last position
-        if ds.data_type.agg_type == DataAggrTypes.SUM and df.aug_policy == AugmentationPolicy.TILL_NOW:
-            last_dsr_before_start_rts = (
-                DsReading.objects.filter(datastream__id=ds.pk, time__lte=start_rts).order_by("time").last()
-            )
-            last_ndm_before_start_rts = (
-                NoDataMarker.objects.filter(datastream__id=ds.pk, time__lte=start_rts).order_by("time").last()
-            )
-            if last_ndm_before_start_rts is None or (
-                last_dsr_before_start_rts is not None
-                and last_dsr_before_start_rts.time > last_ndm_before_start_rts.time
-            ):
-                # temporarily add this point
-                df_reading_map[start_rts] = DfReading(time=start_rts, value=0, datafeed=df, restored=True)
-
-    # create a grid according to the augmentation policy
-    if df.aug_policy == AugmentationPolicy.TILL_LAST_DF_READING:
-        if last_df_reading_rts is None:  # impossible to have it None at this point, just for the linter
-            return {}
-        end_rts_acc_to_aug_policy = last_df_reading_rts
-    elif df.aug_policy == AugmentationPolicy.TILL_NOW:
-        end_rts_acc_to_aug_policy = ceil_timestamp(create_now_ts_ms() - ds.till_now_margin, time_resample)
-    else:
-        raise ValueError("Wrong augmentation policy")
-
-    grid = create_grid(start_rts + time_resample, end_rts_acc_to_aug_policy, time_resample)
-
-    last_df_reading_rts = None
-    is_nodata_period = df_reading_map.get(start_rts, None) is None
+    grid = create_grid(start_rts + time_resample, end_rts, time_resample)
 
     for rts in grid:
         arr = df_reading_map.get(rts, None)  # 'arr' is already sorted by time
-        if arr is not None:
-            new_arr = [r for r in arr if isinstance(r, DsReading)]
-            agg_value = agg_func(new_arr)  # if 'new_arr' is empty, 'agg_func' will return None
+        if arr is not None:  # if 'arr' is not None, then it contains at least one item: dsr or ndm
+            if isinstance(arr[-1], NoDataMarker):  # if the last item in 'arr' is NoDataMarker
+                is_nd_period_open = True
+            else:
+                is_nd_period_open = False  # new ds readings after an nd_marker "destroy" nodata period
 
-            if agg_value is not None:
-                is_nodata_period = False
-                dfr = DfReading(time=rts, value=agg_value, datafeed=df, restored=False)
+            new_arr = [r for r in arr if isinstance(r, DsReading)]
+            aggr_value = aggr_func(new_arr)  # if 'new_arr' is empty, 'agg_func' will return None
+
+            if aggr_value is not None:
+                dfr = DfReading(time=rts, value=aggr_value, datafeed=df, restored=False)
                 df_reading_map[rts] = dfr
-                last_df_reading_rts = rts
             else:  # only nodata marker in 'arr'
                 del df_reading_map[rts]
 
-            if isinstance(arr[-1], NoDataMarker):  # if the last item in 'arr' is NoDataMarker
-                is_nodata_period = True
         else:
-            if not is_nodata_period:
-                prev_dfr = df_reading_map.get(rts - time_resample, None)
-                if prev_dfr is not None:
-                    if ds.data_type.agg_type == DataAggrTypes.SUM:
-                        dfr = DfReading(time=rts, value=0, datafeed=df, restored=True)
-                    elif ds.data_type.agg_type == DataAggrTypes.LAST:
+            if not is_nd_period_open:
+                dfr = None
+                if aggr_type == DataAggrTypes.SUM:
+                    dfr = DfReading(time=rts, value=0, datafeed=df, restored=True)
+                elif aggr_type == DataAggrTypes.LAST:
+                    prev_dfr = df_reading_map.get(rts - time_resample, None)
+                    if prev_dfr is not None:  # may be None at 'start_rts'
                         dfr = DfReading(time=rts, value=prev_dfr.value, datafeed=df, restored=True)
-                    else:
-                        raise ValueError(f"Unknown augmentation type for {ds.data_type.agg_type}")
+                else:
+                    raise ValueError(f"Unknown augmentation type for {aggr_type}")
+                if dfr is not None:
                     df_reading_map[rts] = dfr
-                    last_df_reading_rts = rts
 
-    # removing the dfr taken from the previous period
+    # remove the temporarily added dfr from the previous period
     if df_reading_map.get(start_rts, None) is not None:
         del df_reading_map[start_rts]
 
-    # injection of 'not_to_use' property
-    if last_df_reading_rts is not None:
-        # if not df_reading_map[last_df_reading_rts].restored:
-        df_reading_map[last_df_reading_rts].not_to_use = NotToUseDfrTypes.UNCLOSED
+    # we assume that the last bin is always unclosed
+    if df_reading_map.get(end_rts, None) is not None:
+        del df_reading_map[end_rts]
 
     return df_reading_map
 
 
 # For 'continuous + AVG' datastreams
 def restore_continuous_avg(
-    df_reading_map: IndDfReadingMap, df: Datafeed, time_resample: int, time_change: int, start_rts: int
+    df_reading_map: IndDfReadingMap,
+    df: Datafeed,
+    time_resample: int,
+    time_change: int,
+    start_rts: int,
+    last_nat_dfrs_from_prev_period: list[DfReading],
 ) -> IndDfReadingMap:
+
+    if len(df_reading_map) == 0:  # nothing to restore
+        return df_reading_map
 
     sorted_df_readings = sorted(df_reading_map.values(), key=lambda x: x.time)
 
     for dfr in sorted_df_readings:  # NOTE: just in case, probably not necessary at all
         dfr.not_to_use = None
 
-    # get some readings 'from the past' to have enough readings for interpolation
-    last_df_readings_from_prev_period = DfReading.objects.filter(
-        datafeed__id=df.pk, time__lte=start_rts, restored=False
-    ).order_by("-time")[:3]  # Django doesn't allow negative indexes in slicing
-    # that's why we use '-time' and then 'reversed'
-    last_df_readings_from_prev_period = list(reversed(last_df_readings_from_prev_period))
-
     # add some readings 'from the past' to have enough readings for interpolation
     next_rts = sorted_df_readings[0].time
-    i = len(last_df_readings_from_prev_period) - 1
+    i = len(last_nat_dfrs_from_prev_period) - 1
     if i >= 0:
         while i >= 0:
-            if next_rts - last_df_readings_from_prev_period[i].time <= time_change:
+            if next_rts - last_nat_dfrs_from_prev_period[i].time <= time_change:
                 # TODO: prepending operation,
                 # maybe not the best solution from the performance point of view
-                sorted_df_readings.insert(0, last_df_readings_from_prev_period[i])
+                sorted_df_readings.insert(0, last_nat_dfrs_from_prev_period[i])
             else:
                 break
-            next_rts = last_df_readings_from_prev_period[i].time
+            next_rts = last_nat_dfrs_from_prev_period[i].time
             i -= 1
 
     # first it is necessary to obtain the clusters of points to build splines
@@ -418,36 +281,42 @@ def restore_continuous_avg(
 
 
 def restore_totalizer(
-    df_reading_map: IndDfReadingMap, df: Datafeed, time_resample: int, time_change: int, start_rts: int
+    df_reading_map: IndDfReadingMap,
+    df: Datafeed,
+    time_resample: int,
+    time_change: int,
+    start_rts: int,
+    last_nat_dfr_from_prev_period,
 ) -> IndDfReadingMap:
 
     sorted_df_readings = sorted(df_reading_map.values(), key=lambda x: x.time)
 
-    last_dfr_from_prev_period = DfReading.objects.filter(
-        datafeed__id=df.pk, time__lte=start_rts, restored=False
-    ).first()
-
-    if last_dfr_from_prev_period is not None:
+    if last_nat_dfr_from_prev_period is not None:
         # maybe not the best solution from the performance point of view
-        sorted_df_readings.insert(0, last_dfr_from_prev_period)
+        sorted_df_readings.insert(0, last_nat_dfr_from_prev_period)
 
     if len(sorted_df_readings) < 2:
         return df_reading_map
 
-    sorted_df_readings[-1].not_to_use = NotToUseDfrTypes.SPLINE_UNCLOSED
+    new_df_reading_map = df_reading_map.copy()  # add native df readings first
+    i = 0
 
-    new_df_reading_map = df_reading_map.copy()
-    i = 1
     while i < len(sorted_df_readings):
-        if i - 1 == len(sorted_df_readings) - 2:
-            # -2: restored df readings between the penultimate
-            # and the last 'native' df readings are not used
+        delta_time = sorted_df_readings[i + 1].time - sorted_df_readings[i].time
+        if i == len(sorted_df_readings) - 2:  # if we got to the penultimate native df reading
+            if delta_time > time_resample:
+                if delta_time <= time_change:
+                    sorted_df_readings[i + 1].not_to_use = NotToUseDfrTypes.SPLINE_UNCLOSED
+                else:
+                    sorted_df_readings[i + 1].not_to_use = NotToUseDfrTypes.SPLINE_NOT_TO_USE
+            else:
+                sorted_df_readings[i + 1].not_to_use = NotToUseDfrTypes.UNCLOSED
             break
-        delta_time = sorted_df_readings[i].time - sorted_df_readings[i - 1].time
+
         if delta_time > time_resample and delta_time <= time_change:
-            grid = create_grid(sorted_df_readings[i - 1].time, sorted_df_readings[i].time, time_resample)
-            k = (sorted_df_readings[i].value - sorted_df_readings[i - 1].value) / delta_time
-            b = sorted_df_readings[i - 1].value - k * sorted_df_readings[i - 1].time
+            grid = create_grid(sorted_df_readings[i].time, sorted_df_readings[i + 1].time, time_resample)
+            k = (sorted_df_readings[i + 1].value - sorted_df_readings[i].value) / delta_time
+            b = sorted_df_readings[i].value - k * sorted_df_readings[i].time
             for rts in grid:
                 if rts > start_rts and rts not in new_df_reading_map:
                     new_df_reading_map[rts] = DfReading(time=rts, datafeed=df, value=k * rts + b, restored=True)

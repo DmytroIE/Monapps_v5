@@ -7,6 +7,7 @@ from django_celery_beat.models import PeriodicTask
 
 from apps.applications.models import Application
 from apps.dfreadings.models import DfReading
+from services.dfr_creator import DfrCreator
 from common.constants import HealthGrades, STATUS_FIELD_NAME, CURR_STATE_FIELD_NAME, reeval_fields
 from common.complex_types import AppFunction
 from utils.ts_utils import create_now_ts_ms
@@ -29,8 +30,40 @@ class AppFuncExecutor:
         self.health_from_app = HealthGrades.UNDEFINED
         self.cs_health = HealthGrades.UNDEFINED  # health based on the cursor timestamp
 
-    @transaction.atomic
     def execute(self):
+        # At first, all df readings are to be prepared
+        # If there are too many df readings, the function 'prepare_df_readings'
+        # will prepare them in batches
+        if self.app.is_enabled:
+            is_at_least_one_df_catching_up = self.create_df_readings()
+            if is_at_least_one_df_catching_up:
+                self.update_map["is_catching_up"] = True
+                self.update_catching_up()
+                self.app.save(update_fields=self.app.update_fields)
+                logger.debug("App is catching up with df readings")
+                logger.debug("---END---")
+                return
+        # when all df readings are prepared it is possible to execute the app function
+        self.evaluate()
+
+    def create_df_readings(self):
+        is_at_least_one_df_catching_up = False
+        native_df_qs = self.app.get_native_df_qs()
+
+        for nat_df in native_df_qs:
+            try:
+                logger.debug(f"Create readings for df {nat_df.pk} {nat_df.name}")
+                creator = DfrCreator(self.app, nat_df)
+                creator.execute()
+                if creator.check_catching_up():
+                    is_at_least_one_df_catching_up = True
+            except Exception:
+                logger.error(f"Error while creating dfrs for {nat_df.pk} {nat_df.name}, {traceback.format_exc(-1)}")
+
+        return is_at_least_one_df_catching_up
+
+    @transaction.atomic
+    def evaluate(self):
         self.app = Application.objects.select_for_update().get(pk=self.app.pk)
         self.task = PeriodicTask.objects.select_for_update().get(pk=self.task.pk)
         if self.app.is_enabled:
@@ -47,15 +80,13 @@ class AppFuncExecutor:
 
         logger.debug("Update other parameters")
         self.run_post_exec_routine()
+        logger.debug("---END---")
 
-    @transaction.atomic  # lock datafeeds
     def run_exec_routine(self):
         native_df_qs = self.app.get_native_df_qs().select_for_update()
         native_df_map = {df.name: df for df in native_df_qs}
         derived_df_qs = self.app.get_derived_df_qs().select_for_update()
         derived_df_map = {df.name: df for df in derived_df_qs}
-
-        self.task = PeriodicTask.objects.select_for_update().get(pk=self.task.pk)
 
         derived_df_readings, self.update_map = self.app_func(self.app, native_df_map, derived_df_map)
 
@@ -114,10 +145,12 @@ class AppFuncExecutor:
         if is_catching_up:
             self.task.interval = self.app.catch_up_interval
             self.task.save()
+            add_to_alarm_log("INFO", "Catching up started", instance=self.app)
             logger.debug("Catching up started")
         elif not is_catching_up:
             self.task.interval = self.app.invoc_interval
             self.task.save()
+            add_to_alarm_log("INFO", "Catching up finished", instance=self.app)
             logger.debug("Catching up finished")
 
     def update_cursor_pos(self):
@@ -132,15 +165,11 @@ class AppFuncExecutor:
             return
         for ts, row in alarm_payload.items():
             error_dict = row.get("e")
-            upd_error_map, _ = update_alarm_map(
-                self.app, error_dict, ts, "errors", add_to_log=add_to_app_log
-            )
+            upd_error_map, _ = update_alarm_map(self.app, error_dict, ts, "errors", add_to_log=add_to_app_log)
             set_attr_if_cond(upd_error_map, "!=", self.app, "errors")
 
             warning_dict = row.get("w")
-            upd_warning_map, _ = update_alarm_map(
-                self.app, warning_dict, ts, "warnings", add_to_log=add_to_app_log
-            )
+            upd_warning_map, _ = update_alarm_map(self.app, warning_dict, ts, "warnings", add_to_log=add_to_app_log)
             set_attr_if_cond(upd_warning_map, "!=", self.app, "warnings")
 
             app_infos_for_ts = row.get("i")
@@ -234,8 +263,10 @@ class AppFuncExecutor:
         update_reeval_fields(parent, parent_reeval_fields)
         if len(parent.reeval_fields) == 0:
             return
+
+        logger.debug(f"Enqueue parent 'asset {parent.pk}' update")
         logger.debug(f"To be reevaluated: {parent.reeval_fields}")
         enqueue_update(parent, now_ts, coef=0.2)
-        logger.debug(f"Parent update enqueued for {parent.next_upd_ts}")
+        logger.debug(f"Update enqueued for {parent.next_upd_ts}")
 
         parent.save(update_fields=parent.update_fields)

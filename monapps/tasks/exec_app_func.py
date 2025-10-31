@@ -8,7 +8,7 @@ from apps.applications.models import Application
 from common.complex_types import AppFunction
 from services.app_func_executor import AppFuncExecutor
 from app_functions.app_functions import app_function_map
-from services.new_dfr_creator import NewDfrCreator
+
 
 logger = logging.getLogger("#exec_app_func")
 
@@ -21,8 +21,7 @@ def exec_app_func(self) -> None:
         return
     if (app_func := discover_app_func(app)) is None:
         return
-
-    NewDfrCreator(app).execute()
+    logger.info(f"Executing app function {app.type.func_name} {app.func_version} for app {app.name}")
     AppFuncExecutor(app, app_func, task).execute()
 
 

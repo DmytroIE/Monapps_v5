@@ -19,7 +19,6 @@ def function(
     Used as a generator of different status and current state values for testing the update algorithms.
     Also, sometimes can generate exceptions to test the exception handling in the wrapper"
     """
-    logger.info("'fake_data_generator_1_0_0' starts executing...")
 
     status_df = derived_df_map[STATUS_FIELD_NAME]
     curr_state_df = derived_df_map[CURR_STATE_FIELD_NAME]

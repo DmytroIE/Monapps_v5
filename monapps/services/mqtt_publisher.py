@@ -1,6 +1,8 @@
 import os
 import logging
 import paho.mqtt.client as mqtt
+import threading
+from typing import Optional, Union
 
 from services.alarm_log import add_to_alarm_log
 
@@ -29,6 +31,45 @@ def on_disconnect(client: mqtt.Client, userdata, flags, reason_code, properties)
         "INFO", "Disconnected from the broker", instance=client_id
     )
     logger.info(f"MQTT publisher {client_id} disconnected")
+
+
+def publish_with_delay(topic: str,
+                       payload: Optional[Union[str, bytes]] = None,
+                       qos: int = 0,
+                       retain: bool = False,
+                       properties=None,
+                       delay_ms: int = 0):
+    """
+    Publish via the module-level `mqtt_publisher`.
+
+    If delay_ms > 0, schedule the publish after delay_ms milliseconds using
+    threading.Timer. For occasional short delays this is lightweight and
+    non-blocking for the caller.
+
+    Returns:
+      - The result of mqtt_publisher.publish() (an MQTTMessageInfo) for
+        immediate publishes (delay_ms == 0).
+      - None for delayed publishes.
+    """
+    global mqtt_publisher
+    if mqtt_publisher is None:
+        logger.error("No mqtt_publisher available to publish")
+        return None
+
+    def _do_publish():
+        try:
+            mqtt_publisher.publish(topic, payload, qos, retain, properties)
+        except Exception:
+            logger.exception("Delayed publish failed")
+
+    if delay_ms and delay_ms > 0:
+        timer = threading.Timer(delay_ms / 1000.0, _do_publish)
+        # make it a daemon so it does not block process exit
+        timer.daemon = True
+        timer.start()
+        return None
+    else:
+        return mqtt_publisher.publish(topic, payload, qos, retain, properties)
 
 
 # the publisher will be created only if MONAPP_PROC_NAME is set

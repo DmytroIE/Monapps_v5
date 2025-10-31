@@ -113,8 +113,10 @@ def create_http_response(reading_model, query_params: QueryDict, reading_seriali
         base_model_instance_pk = int(kwargs.get("pk"))
         base_model.objects.get(pk=base_model_instance_pk)
     except base_model.DoesNotExist:
+        cap_base_model_name = base_model_name.capitalize() if base_model_name is not None else "base model"
         return Response(
-            {"error": f"{base_model_name.capitalize() if base_model_name is not None else ""} not found"}, status=404
+            {"error": f"Corresponding {cap_base_model_name} instance not found"},
+            status=404,
         )
     except ValueError:
         return Response({"error": f"Invalid {base_model_name} pk"}, status=400)
