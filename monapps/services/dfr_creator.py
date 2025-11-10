@@ -8,7 +8,7 @@ from apps.datafeeds.models import Datafeed
 from apps.datastreams.models import Datastream
 from apps.dsreadings.models import DsReading, NoDataMarker
 from apps.dfreadings.models import DfReading
-from common.constants import AugmentationPolicy, DataAggrTypes, VariableTypes, NotToUseDfrTypes
+from common.constants import AugmentationPolicy, DataAggTypes, VariableTypes, NotToUseDfrTypes
 from utils.ts_utils import ceil_timestamp, create_now_ts_ms
 
 from utils.dfr_utils import (
@@ -93,7 +93,7 @@ class DfrCreator:
 
             if first_dsr_after_start_rts is not None and (
                 self.is_nd_period_open
-                or (self.df.data_type.agg_type == DataAggrTypes.LAST and last_dsr_before_start_rts is None)
+                or (self.df.data_type.agg_type == DataAggTypes.LAST and last_dsr_before_start_rts is None)
                 or (
                     first_ndm_after_start_rts is not None
                     and ceil_timestamp(first_ndm_after_start_rts.time - self.df.time_resample, self.df.time_resample)
@@ -163,10 +163,10 @@ class DfrCreator:
 
     def create_df_readings(self):
         var_type = self.df.data_type.var_type
-        aggr_type = self.df.data_type.agg_type
+        agg_type = self.df.data_type.agg_type
         is_totalizer = self.df.data_type.is_totalizer
 
-        if var_type == VariableTypes.CONTINUOUS and aggr_type == DataAggrTypes.AVG:
+        if var_type == VariableTypes.CONTINUOUS and agg_type == DataAggTypes.AVG:
             if len(self.ds_readings) == 0:
                 logger.debug("No ds readings to process")
                 return
@@ -185,7 +185,7 @@ class DfrCreator:
             k = 1  # this number limits the number of iterations in the cylce below to avoid an infinite loop
             while True:
                 self.df_reading_map = resample_ds_readings(
-                    self.ds_readings, self.df, self.df.time_resample, DataAggrTypes.AVG
+                    self.ds_readings, self.df, self.df.time_resample, DataAggTypes.AVG
                 )
                 if self.df.is_rest_on:
                     self.df_reading_map = restore_continuous_avg(
@@ -220,7 +220,7 @@ class DfrCreator:
 
         elif (
             var_type == VariableTypes.CONTINUOUS or var_type == VariableTypes.DISCRETE
-        ) and aggr_type == DataAggrTypes.SUM:
+        ) and agg_type == DataAggTypes.SUM:
             if not is_totalizer:
                 if self.ds.is_rbe and self.df.is_aug_on:
                     sorted_dsrs_and_ndms = self.create_sorted_dsrs_and_ndms_list()
@@ -230,7 +230,7 @@ class DfrCreator:
                         self.df.time_resample,
                         self.start_rts,
                         self.batch_end_rts,
-                        DataAggrTypes.SUM,
+                        DataAggTypes.SUM,
                         self.is_nd_period_open,
                     )
                 else:
@@ -238,7 +238,7 @@ class DfrCreator:
                         self.ds_readings,
                         self.df,
                         self.df.time_resample,
-                        DataAggrTypes.SUM,
+                        DataAggTypes.SUM,
                     )
             else:
                 if self.ds.is_rbe and self.df.is_aug_on:
@@ -250,7 +250,7 @@ class DfrCreator:
                         self.df.time_resample,
                         self.start_rts,
                         self.batch_end_rts,
-                        DataAggrTypes.LAST,
+                        DataAggTypes.LAST,
                         self.is_nd_period_open,
                         dfr_at_start_ts,
                     )
@@ -259,7 +259,7 @@ class DfrCreator:
                         self.ds_readings,
                         self.df,
                         self.df.time_resample,
-                        DataAggrTypes.LAST,
+                        DataAggTypes.LAST,
                     )
                     if self.df.is_rest_on:
                         if self.ds.time_change is None:
@@ -284,7 +284,7 @@ class DfrCreator:
                             last_nat_dfr_from_prev_period,
                         )
 
-        elif aggr_type == DataAggrTypes.LAST:  # for all var_types
+        elif agg_type == DataAggTypes.LAST:  # for all var_types
             if self.ds.is_rbe and self.df.is_aug_on:
                 sorted_dsrs_and_ndms = self.create_sorted_dsrs_and_ndms_list()
                 dfr_at_start_ts = self.get_dfr_at_start_ts()
@@ -294,7 +294,7 @@ class DfrCreator:
                     self.df.time_resample,
                     self.start_rts,
                     self.batch_end_rts,
-                    DataAggrTypes.LAST,
+                    DataAggTypes.LAST,
                     self.is_nd_period_open,
                     dfr_at_start_ts,
                 )
@@ -303,13 +303,13 @@ class DfrCreator:
                     self.ds_readings,
                     self.df,
                     self.df.time_resample,
-                    DataAggrTypes.LAST,
+                    DataAggTypes.LAST,
                 )
 
         else:
             raise ValueError(
                 f"""No proper resampling procedure for var type {var_type}
-                            with agg type {aggr_type}"""
+                            with agg type {agg_type}"""
             )
 
         self.is_catching_up = self.batch_end_rts < self.end_rts

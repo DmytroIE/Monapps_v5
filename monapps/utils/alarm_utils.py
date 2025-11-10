@@ -59,13 +59,16 @@ def update_alarm_map(
     add_to_log: AddToLogFunc = add_to_alarm_log,
 ):
     """
-    This function updates certain type of an alarm map - "errors" or "warnings. Also, it puts all
+    This function updates certain type of an alarm map - "errors" or "warnings". Also, it puts all
     the transistions of individual alarms into the alarm log. The variable "alarm_dict_for_ts" should contain
     the dictionary of errors or warnings for a certain timestamp. This dictionary looks like
     {"error 1 name": {"st": "in"}, "error 2 name ": {}, ...} and usually is part of payload coming from different
-    devices and datastreams. If "has_value" is True, then persistent errors (but not warnings) that have status "in"
-    will be assigned status "out" if there is no record for this error for this timestamp.
-    'add_to_log' is used to reflect alarm transitions in a certain log.
+    devices and datastreams. Errors and warnings that have the field "st" equal to "in" are persistent - you
+    can send them only once, when the alarm is triggered, and it will last until it is cleared with {"st": "out"}.
+    For persistent errors there is one more way to clear - if the "has_value" parameter is True,
+    and there is no record in parallel for this particular timestamp. It means that if there is value
+    and no error for a certain timestamp, then the error is no longer relevant (otherwise there wouldn't be
+    a value).
     """
     alarm_map = getattr(instance, alarm_map_type)
     log_level: Literal["ERROR", "WARNING"] = alarm_map_type[:-1].upper()

@@ -22,7 +22,7 @@ from utils.update_utils import set_attr_if_cond, enqueue_update
 from utils.alarm_utils import update_alarm_map, at_least_one_alarm_in
 from utils.sequnce_utils import find_max_ts
 from services.device_log import add_to_device_log
-from common.constants import HealthGrades, VariableTypes, DataAggrTypes
+from common.constants import HealthGrades, VariableTypes, DataAggTypes
 
 logger = logging.getLogger("#raw_data_proc")
 
@@ -191,7 +191,7 @@ class RawDataProcessor:
 
         # create nd markers
         if not ds.is_rbe or (
-            ds.data_type.var_type == VariableTypes.CONTINUOUS and ds.data_type.agg_type == DataAggrTypes.AVG
+            ds.data_type.var_type == VariableTypes.CONTINUOUS and ds.data_type.agg_type == DataAggTypes.AVG
         ):
             nd_markers = []
             unused_nd_markers = []

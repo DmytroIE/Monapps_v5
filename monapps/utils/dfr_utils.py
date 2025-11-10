@@ -7,7 +7,7 @@ from apps.dsreadings.models import DsReading, NoDataMarker
 from apps.dfreadings.models import DfReading
 
 from common.complex_types import IndDfReadingMap
-from common.constants import DataAggrTypes, NotToUseDfrTypes
+from common.constants import DataAggTypes, NotToUseDfrTypes
 from utils.ts_utils import ceil_timestamp, create_grid
 
 
@@ -45,21 +45,21 @@ def find_last_value(ds_readings: list[DsReading]) -> float | int | None:
     return last_value
 
 
-aggr_map = {DataAggrTypes.AVG: find_average, DataAggrTypes.SUM: find_sum, DataAggrTypes.LAST: find_last_value}
+agg_map = {DataAggTypes.AVG: find_average, DataAggTypes.SUM: find_sum, DataAggTypes.LAST: find_last_value}
 
 
 def resample_ds_readings(
     sorted_ds_readings: list[DsReading],
     df: Datafeed,
     time_resample: int,
-    aggr_type: DataAggrTypes,
+    agg_type: DataAggTypes,
 ) -> IndDfReadingMap:
     """
     A generic function, can be used with different aggregation functions.
     """
 
     df_reading_map = {}
-    aggr_func = aggr_map[aggr_type]
+    agg_func = agg_map[agg_type]
 
     last_df_reading_rts = 0
     for r in sorted_ds_readings:
@@ -71,9 +71,9 @@ def resample_ds_readings(
         last_df_reading_rts = rts
 
     for rts in df_reading_map:
-        aggr_value = aggr_func(df_reading_map[rts])
-        if aggr_value is not None:
-            dfr = DfReading(time=rts, value=aggr_value, datafeed=df, restored=False)
+        agg_value = agg_func(df_reading_map[rts])
+        if agg_value is not None:
+            dfr = DfReading(time=rts, value=agg_value, datafeed=df, restored=False)
             df_reading_map[rts] = dfr
             # injection of 'not_to_use' property
             if rts == last_df_reading_rts:
@@ -88,7 +88,7 @@ def resample_and_augment_ds_readings(
     time_resample: int,
     start_rts: int,
     end_rts: int,
-    aggr_type: DataAggrTypes,
+    agg_type: DataAggTypes,
     is_nd_period_open: bool,
     dfr_at_start_ts: DfReading | None = None,
 ) -> IndDfReadingMap:
@@ -97,7 +97,7 @@ def resample_and_augment_ds_readings(
         return {}
 
     df_reading_map = {}
-    aggr_func = aggr_map[aggr_type]
+    agg_func = agg_map[agg_type]
 
     for r in sorted_dsrs_and_ndms:
         rts = ceil_timestamp(r.time, time_resample)
@@ -122,10 +122,10 @@ def resample_and_augment_ds_readings(
                 is_nd_period_open = False  # new ds readings after an nd_marker "destroy" nodata period
 
             new_arr = [r for r in arr if isinstance(r, DsReading)]
-            aggr_value = aggr_func(new_arr)  # if 'new_arr' is empty, 'agg_func' will return None
+            agg_value = agg_func(new_arr)  # if 'new_arr' is empty, 'agg_func' will return None
 
-            if aggr_value is not None:
-                dfr = DfReading(time=rts, value=aggr_value, datafeed=df, restored=False)
+            if agg_value is not None:
+                dfr = DfReading(time=rts, value=agg_value, datafeed=df, restored=False)
                 df_reading_map[rts] = dfr
             else:  # only nodata marker in 'arr'
                 del df_reading_map[rts]
@@ -133,14 +133,14 @@ def resample_and_augment_ds_readings(
         else:
             if not is_nd_period_open:
                 dfr = None
-                if aggr_type == DataAggrTypes.SUM:
+                if agg_type == DataAggTypes.SUM:
                     dfr = DfReading(time=rts, value=0, datafeed=df, restored=True)
-                elif aggr_type == DataAggrTypes.LAST:
+                elif agg_type == DataAggTypes.LAST:
                     prev_dfr = df_reading_map.get(rts - time_resample, None)
                     if prev_dfr is not None:  # may be None at 'start_rts'
                         dfr = DfReading(time=rts, value=prev_dfr.value, datafeed=df, restored=True)
                 else:
-                    raise ValueError(f"Unknown augmentation type for {aggr_type}")
+                    raise ValueError(f"Unknown augmentation type for {agg_type}")
                 if dfr is not None:
                     df_reading_map[rts] = dfr
 

@@ -10,7 +10,7 @@ from apps.dsreadings.models import (
     NoDataMarker,
     UnusedNoDataMarker,
 )
-from common.constants import DataAggrTypes, VariableTypes
+from common.constants import DataAggTypes, VariableTypes
 
 logger = logging.getLogger("#dsr_utils")
 
@@ -22,7 +22,7 @@ def create_ds_readings(
     ds_readings, unused_ds_readings = sort_unused_ds_readings(pairs_ts_value, ds, now)
     ds_readings, invalid_ds_readings = validate_ds_readings(ds_readings, ds)
     non_roc_ds_readings = []
-    if ds.data_type.agg_type == DataAggrTypes.AVG and ds.data_type.var_type == VariableTypes.CONTINUOUS:
+    if ds.data_type.agg_type == DataAggTypes.AVG and ds.data_type.var_type == VariableTypes.CONTINUOUS:
         ds_readings, non_roc_ds_readings = roc_filter_ds_readings(ds_readings, ds)
 
     if len(ds_readings) > 0:

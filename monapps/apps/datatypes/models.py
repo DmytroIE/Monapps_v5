@@ -1,6 +1,6 @@
 from django.db import models
 
-from common.constants import VariableTypes, DataAggrTypes
+from common.constants import VariableTypes, DataAggTypes
 
 
 class DataType(models.Model):
@@ -9,7 +9,7 @@ class DataType(models.Model):
         db_table = "datatypes"
 
     name = models.CharField(default="Temperature", max_length=200, unique=True)
-    agg_type = models.IntegerField(default=DataAggrTypes.AVG, choices=DataAggrTypes.choices)
+    agg_type = models.IntegerField(default=DataAggTypes.AVG, choices=DataAggTypes.choices)
     var_type = models.IntegerField(default=VariableTypes.CONTINUOUS, choices=VariableTypes.choices)
     # 'is_totalizer' works only with agg_type = SUM
     is_totalizer = models.BooleanField(default=False)  # only for 'agg_type' = SUM
