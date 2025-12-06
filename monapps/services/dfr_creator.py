@@ -36,8 +36,6 @@ class DfrCreator:
             raise Exception(f"Datafeed {self.df.id} has no datastream")
         self.ds = Datastream.objects.select_for_update().get(pk=self.df.datastream.pk)
 
-        self.now_ts = create_now_ts_ms()
-
         is_calculated = self.calc_start_rts()
         if not is_calculated:
             self.is_catching_up = False
@@ -110,7 +108,8 @@ class DfrCreator:
     def calc_end_rts(self) -> bool:
         last_dsr = DsReading.objects.filter(datastream__id=self.ds.pk, time__gt=self.start_rts).order_by("time").last()
         if self.ds.is_rbe and self.df.is_aug_on and self.df.aug_policy == AugmentationPolicy.TILL_NOW:
-            self.end_rts = ceil_timestamp(self.now_ts - self.ds.till_now_margin, self.df.time_resample)
+            now_ts = create_now_ts_ms()
+            self.end_rts = ceil_timestamp(now_ts - self.ds.till_now_margin, self.df.time_resample)
             last_ndm = (
                 NoDataMarker.objects.filter(datastream__id=self.ds.pk, time__gt=self.start_rts).order_by("time").last()
             )

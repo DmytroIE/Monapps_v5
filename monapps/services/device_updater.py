@@ -3,13 +3,8 @@ from django.db import transaction
 from django.conf import settings
 
 from apps.devices.models import Device
-from utils.ts_utils import create_now_ts_ms
-from utils.update_utils import (
-    derive_health_from_children,
-    enqueue_update,
-    update_reeval_fields,
-    set_attr_if_cond
-)
+from utils.ts_utils import create_now_ts_ms, create_iso_str_from_ts_ms
+from utils.update_utils import derive_health_from_children, enqueue_update, update_reeval_fields, set_attr_if_cond
 
 logger = logging.getLogger("#dev_updater")
 
@@ -20,10 +15,10 @@ class DeviceUpdater:
 
     @transaction.atomic
     def execute(self):
-        self.now_ts = create_now_ts_ms()
+        now_ts = create_now_ts_ms()
         device_qs = (
             Device.objects.filter(
-                next_upd_ts__lte=self.now_ts,
+                next_upd_ts__lte=now_ts,
             )
             .order_by("next_upd_ts")
             .prefetch_related("parent")
@@ -52,14 +47,13 @@ class DeviceUpdater:
 
         self.update_device_health(dev, children, parent)
 
-        # move the update time several hours ahead
-        dev.next_upd_ts = self.now_ts + settings.TIME_DELAY_ASSET_MANDATORY_UPDATE_MS
+        dev.next_upd_ts = settings.MAX_TS_MS
         dev.update_fields.add("next_upd_ts")
 
         dev.save(update_fields=dev.update_fields)
 
     def update_device_health(self, dev, children, parent):
-        now_ts = create_now_ts_ms()
+
         chld_health = derive_health_from_children(children)
         set_attr_if_cond(chld_health, "!=", dev, "chld_health")
         health = max(dev.msg_health, dev.chld_health)
@@ -72,7 +66,11 @@ class DeviceUpdater:
         if parent is None:
             return
 
-        logger.debug(f"Enqueue parent 'asset {parent.pk}' update")
+        now_ts = create_now_ts_ms()
         update_reeval_fields(parent, "health")
         enqueue_update(parent, now_ts)
-        logger.debug(f"Update enqueued for {parent.next_upd_ts}")
+        logger.debug(
+            f"Enqueue parent asset {parent.pk} '{parent.name}' update for {
+                create_iso_str_from_ts_ms(parent.next_upd_ts)
+                }"
+        )

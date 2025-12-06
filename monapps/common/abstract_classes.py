@@ -47,27 +47,26 @@ class PublishingOnSaveModel(models.Model):
         if self.pk:
             old_version = self.__class__.objects.get(pk=self.pk)
             if old_version.parent != self.parent:
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!parent changed")
-                print(f"old parent: {old_version.parent}, new parent: {self.parent}")
                 has_parent_changed = True
                 old_parent = old_version.parent
 
+        # The program relies upon the 'update_fields' parameter (a set of names of the changed fields) in the 'kwargs'
+        # It means that this set should be updated every time when any field of an instance is changed in the code
+        # and then passed to the 'save' method.
+        # When the 'save' method is called, the presence of this field in 'kwargs' helps to identify where the changes
+        # came from and based on this to undertake some additional actions.
+        # For example, if the 'update_fields' field is 'None', it means that the 'save' method was called from
+        # the admin interface, and it is necessary to create an MQTT message of a certain shape
+        # and enqueue bulk/total parent update.
+        # If it an empty set, then the 'save' method will be ommitted.
+        # If it is a non-empty set, then an MQTT message with the changed fields will be created and published.
+        # It also should be noted, that it is necessary to use not an arbitrary set,
+        # but the 'update_fields' field of the instance,
+        # because it is used in some auxiliary functions (and the whole program is built assuming that
+        # this 'self.update_fields' field is used). Instance "drags" this field with it through many transformations.
+        # In the 'save' method, after saving, it gets reset and an empty set is ready for the next processing cycle.
         super().save(**kwargs)
-        # 'update_fields' is used to collect the names of the fields that were changed.
-        # It will then be used in the 'save' method and reset.
-        # To align with the Django 'save' method signature, this field should be
-        # used explicitly in the 'save' method -> instance.save(update_fields=instance.update_fields).
-        # Sure, it is possible to use any set variable, but this built-in field can "collect"
-        # changes while the instance is going through many changing functions.
-        # Also, some auxiliary functions count on this field, so it is recommended to use it.
-        # If the length of 'update_fields' is greater than 0 by this point, it means that
-        # some real changes in the saved instance (we assume that we save any model
-        # only when some of its fields were changed, so the database is not hit for no reason).
-        # In this case, it is responsibility of the caller to enqueue the update of the parent.
-        # If 'update_fields' is 'None', it most likely that the instance was saved
-        # in the admin console. In this case, the parent update with all reeval fields
-        # will be enqueued here. Therefore, don't save instances without
-        # explicit 'update_fields' parameter.
+
         update_fields = kwargs.get("update_fields")
         update_fields_length = 0
         try:
@@ -93,7 +92,7 @@ class PublishingOnSaveModel(models.Model):
         if has_parent_changed:
             self.total_parent_update(old_parent)
 
-        # reset after all the processing
+        # reset after processing
         self.update_fields = set()
 
     def publish_on_mqtt(self, fields_to_publish: set, message_type: Literal["c", "u", "d"]):
@@ -112,8 +111,7 @@ class PublishingOnSaveModel(models.Model):
         logger.info(f"{get_instance_full_id(self)}: Changes published on MQTT")
 
     def delete(self, using=None, keep_parents=False):
-
-        # when delete an instance, the parent update with all reeval fields
+        # when deleting an instance, a bulk parent update
         # will be enqueued here
         children_with_cascade_delete = []
         for relation in self._meta.related_objects:
@@ -156,7 +154,7 @@ class PublishingOnSaveModel(models.Model):
             update_reeval_fields(parent, reeval_fields)
             logger.debug(f"{parent_full_id}: To be reevaluated: {reeval_fields}")
         if hasattr(parent, "next_upd_ts"):
-            enqueue_update(parent, create_now_ts_ms(), coef=0.2)
+            enqueue_update(parent, create_now_ts_ms())
             logger.debug(f"{parent_full_id}: Update enqueued for {parent.next_upd_ts}")
         parent.save(update_fields=parent.update_fields)
 

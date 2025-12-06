@@ -29,7 +29,6 @@ logger = logging.getLogger("#raw_data_proc")
 
 class RawDataProcessor:
     def __init__(self, dev_ui: str, payload: dict):
-        self.now_ts = create_now_ts_ms()
         self.dev_ui = dev_ui
         self.payload = payload
         self.int_key_payload = {}
@@ -181,13 +180,15 @@ class RawDataProcessor:
         elif at_least_one_warning_in:
             msg_health = HealthGrades.WARNING
 
+        now_ts = create_now_ts_ms()
+
         if set_attr_if_cond(msg_health, "!=", ds, "msg_health"):
 
             health = max(ds.msg_health, ds.nd_health)
 
             if set_attr_if_cond(health, "!=", ds, "health"):
                 # as the ds health changed it is necessary to enqueue the parent device update
-                enqueue_update(self.dev, self.now_ts)
+                enqueue_update(self.dev, now_ts)
 
         # create nd markers
         if not ds.is_rbe or (
@@ -197,11 +198,11 @@ class RawDataProcessor:
             unused_nd_markers = []
             # no sense in creating nodata markers for this type of data or if a ds is not RBE
         else:
-            nd_markers, unused_nd_markers = create_nodata_markers(self.nd_marker_map[ds.name], ds, self.now_ts)
+            nd_markers, unused_nd_markers = create_nodata_markers(self.nd_marker_map[ds.name], ds, now_ts)
 
         # create ds readings
         ds_readings, unused_ds_readings, invalid_ds_readings, non_roc_ds_readings = create_ds_readings(
-            self.ds_reading_map[ds.name], ds, self.now_ts
+            self.ds_reading_map[ds.name], ds, now_ts
         )
 
         # update 'ts_to_start_with' and 'last_valid_reading_ts'
@@ -213,7 +214,7 @@ class RawDataProcessor:
 
         # for periodic datastreams plan health recalculation right away
         if ds.time_update is not None:
-            ds.health_next_eval_ts = self.now_ts + settings.TIME_DS_HEALTH_EVAL_MS
+            ds.health_next_eval_ts = now_ts + settings.TIME_DS_HEALTH_EVAL_MS
             ds.update_fields.add("health_next_eval_ts")
 
         # finally, save the datastream and readings
@@ -230,7 +231,7 @@ class RawDataProcessor:
         for objects, model in t:
             batch_size = 100
             for i in range(0, len(objects), batch_size):
-                if (batch:= objects[i:i + batch_size]):
+                if (batch := objects[i:i + batch_size]):
                     # ignore_conflicts=True will skip saving the object if it already exists
                     # TODO: how to track such "unsaved" objects?
                     model.objects.bulk_create(batch, batch_size=len(batch), ignore_conflicts=True)
@@ -251,6 +252,6 @@ class RawDataProcessor:
         if not set_attr_if_cond(msg_health, "!=", dev, "msg_health"):
             return
 
-        enqueue_update(dev, self.now_ts)
+        enqueue_update(dev, create_now_ts_ms())
 
         dev.save(update_fields=dev.update_fields)

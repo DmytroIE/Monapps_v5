@@ -42,7 +42,7 @@ class Asset(PublishingOnSaveModel):
 
     health = models.IntegerField(default=HealthGrades.UNDEFINED, choices=HealthGrades.choices)
 
-    next_upd_ts = models.BigIntegerField(default=0)  # 0 will initiate update right after an asset creation
+    next_upd_ts = models.BigIntegerField(default=0)  # 0 will initiate update right after asset creation
     # list of fields to be reevaluated, populated by the children
     reeval_fields = models.JSONField(default=get_reeval_fields, blank=True)
 

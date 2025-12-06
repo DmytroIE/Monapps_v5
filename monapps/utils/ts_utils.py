@@ -66,3 +66,7 @@ def get_floored_now_ts(time_resample: int) -> int:
 
 def create_now_ts_ms() -> int:
     return create_ts_ms_from_dt_obj(timezone.now())
+
+
+def create_iso_str_from_ts_ms(ts_ms: int) -> str:
+    return create_dt_from_ts_ms(ts_ms).isoformat()

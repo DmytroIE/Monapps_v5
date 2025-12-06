@@ -160,7 +160,7 @@ update_func_by_property_map = {
 }
 
 
-def enqueue_update(asset_lnk, now_ts: int, coef=0.8):
+def enqueue_update(instance, now_ts: int):
     """
     Adjusts the next update time of the asset.
 
@@ -168,13 +168,12 @@ def enqueue_update(asset_lnk, now_ts: int, coef=0.8):
     :param now_ts: the timestamp of the moment when the enqueuement is called
     :param coef: the coefficient of the time margin to speed up the update in certain cases
     """
-    if asset_lnk is None or not hasattr(asset_lnk, "next_upd_ts"):
+    if instance is None or not hasattr(instance, "next_upd_ts"):
         return
 
-    time_margin = int(settings.TIME_ASSET_UPD_MS * coef)
-    if asset_lnk.next_upd_ts > now_ts + time_margin:
-        asset_lnk.next_upd_ts = now_ts + time_margin
-        asset_lnk.update_fields.add("next_upd_ts")
+    if instance.next_upd_ts > now_ts:
+        instance.next_upd_ts = now_ts
+        instance.update_fields.add("next_upd_ts")
 
 
 def update_reeval_fields(asset_lnk, fields: str | Iterable[str]):

@@ -259,14 +259,14 @@ class AppFuncExecutor:
         if len(parent_reeval_fields) == 0:
             return
 
-        now_ts = create_now_ts_ms()
         update_reeval_fields(parent, parent_reeval_fields)
         if len(parent.reeval_fields) == 0:
             return
 
+        now_ts = create_now_ts_ms()
         logger.debug(f"Enqueue parent 'asset {parent.pk}' update")
         logger.debug(f"To be reevaluated: {parent.reeval_fields}")
-        enqueue_update(parent, now_ts, coef=0.2)
+        enqueue_update(parent, now_ts)
         logger.debug(f"Update enqueued for {parent.next_upd_ts}")
 
         parent.save(update_fields=parent.update_fields)
