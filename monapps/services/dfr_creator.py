@@ -358,9 +358,10 @@ class DfrCreator:
                 time__lte=self.batch_end_rts,
             ).order_by("time")
         )
-        # as the sort provided by 'sorted' is stable,
-        # then if both DsReading and NoDataMarker instances have the same timestamps,
-        # then the NoDataMarker instance will be the last after the sorting
+        # The sort provided by 'sorted' is stable, that's why nodata markers are put at the end
+        # of the resulting list 'ds_readings + nodata_markers'. It will help to treat a situation
+        # when both DsReading and NoDataMarker instances have the same timestamps.
+        # In this case, the NoDataMarker will be processed last.
         sorted_dsrs_and_ndms = sorted(self.ds_readings + nodata_markers, key=lambda x: x.time)
         return sorted_dsrs_and_ndms
 

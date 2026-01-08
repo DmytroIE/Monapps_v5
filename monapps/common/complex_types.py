@@ -9,7 +9,7 @@ type DfReadingMap = dict[int, dict[int, DfReading]]
 type DfValueMap = dict[int, dict[str, int | float]]
 type IndDfReadingMap = dict[int, DfReading]
 
-type AlarmPayloadDictForTs = dict[str, Any]  # can be {"CPU Error": {"st": "in"}} or {"CPU Error": {} - can be anything}
+type AlarmPayloadDictForTs = dict[str, Any]  # {"CPU Error": {"st": "in"}} or {"CPU Error": {}}
 type ReevalFields = Literal["status", "curr_state", "health"]
 
 

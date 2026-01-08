@@ -206,7 +206,7 @@ def restore_continuous_avg(
 
     # after this procedure 'clusters' look like
     # [{1723698300000: <31>, 1723698360000:<30>}, {1723698720000: <30>, 1723698780000:<29>}, ...],
-    # i.e. groups of DfReadings, the distance between groups is >= 't_change'
+    # i.e. groups of DfReadings, the distance between groups is >= 'time_change'
     # at least one cluster with one reading will be created
     # the last cluster is always "not closed"
 
@@ -303,7 +303,7 @@ def restore_totalizer(
 
     while i < len(sorted_df_readings):
         delta_time = sorted_df_readings[i + 1].time - sorted_df_readings[i].time
-        if i == len(sorted_df_readings) - 2:  # if we got to the penultimate native df reading
+        if i == len(sorted_df_readings) - 2:  # if we reached the penultimate native df reading
             if delta_time > time_resample:
                 if delta_time <= time_change:
                     sorted_df_readings[i + 1].not_to_use = NotToUseDfrTypes.SPLINE_UNCLOSED

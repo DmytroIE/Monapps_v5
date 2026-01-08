@@ -118,7 +118,7 @@ class AssetUpdater:
 
             logger.debug(f"Parent 'Asset {parent.pk}' reeval fields -> {parent.reeval_fields}")
 
-            # this trick is needed as 'a' is completely different from 'asset' instance of the asset
+            # this trick is needed as 'a' is completely different from 'asset'
             qs = parent.assets.all()
             for a in qs:
                 if a.pk == asset.pk:

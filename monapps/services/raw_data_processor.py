@@ -196,7 +196,7 @@ class RawDataProcessor:
         ):
             nd_markers = []
             unused_nd_markers = []
-            # no sense in creating nodata markers for this type of data or if a ds is not RBE
+            # no sense in creating nodata markers for this type of data or if the ds is not RBE
         else:
             nd_markers, unused_nd_markers = create_nodata_markers(self.nd_marker_map[ds.name], ds, now_ts)
 

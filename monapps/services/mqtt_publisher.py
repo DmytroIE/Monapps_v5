@@ -74,7 +74,7 @@ def publish_with_delay(topic: str,
 
 # the publisher will be created only if MONAPP_PROC_NAME is set
 proc_name = os.environ.get("MONAPP_PROC_NAME")
-sub_topic = os.getenv("MQTT_SUB_TOPIC")  # in order not to create a publisher in the subscriber process
+sub_topic = os.getenv("MQTT_SUB_TOPIC")
 mqtt_publisher = None
 
 if proc_name is None:

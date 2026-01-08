@@ -32,8 +32,6 @@ class PublishingOnSaveModel(models.Model):
         # It will then be used in the 'save' method and reset.
         # To align with the Django 'save' method signature, this field should be
         # used explicitly in the 'save' method -> instance.save(update_fields=instance.update_fields)
-        # However, this field is used in some auxiliary functions, so it is better to use it
-        # than some arbitrary set.
         self.update_fields = set()
 
     # TODO: overload the 'delete' method as well
@@ -50,21 +48,23 @@ class PublishingOnSaveModel(models.Model):
                 has_parent_changed = True
                 old_parent = old_version.parent
 
-        # The program relies upon the 'update_fields' parameter (a set of names of the changed fields) in the 'kwargs'
-        # It means that this set should be updated every time when any field of an instance is changed in the code
-        # and then passed to the 'save' method.
+        # The program relies upon the 'update_fields' parameter (a set of names of the changed fields) in the 'kwargs'.
+        # It means that this set should be updated whenever any field of an instance is changed in the code
+        # and finally passed to the 'save' method.
         # When the 'save' method is called, the presence of this field in 'kwargs' helps to identify where the changes
-        # came from and based on this to undertake some additional actions.
+        # came from and, based on this, to undertake some additional actions.
         # For example, if the 'update_fields' field is 'None', it means that the 'save' method was called from
         # the admin interface, and it is necessary to create an MQTT message of a certain shape
-        # and enqueue bulk/total parent update.
-        # If it an empty set, then the 'save' method will be ommitted.
-        # If it is a non-empty set, then an MQTT message with the changed fields will be created and published.
-        # It also should be noted, that it is necessary to use not an arbitrary set,
-        # but the 'update_fields' field of the instance,
-        # because it is used in some auxiliary functions (and the whole program is built assuming that
-        # this 'self.update_fields' field is used). Instance "drags" this field with it through many transformations.
+        # and enqueue a bulk/total parent update.
+        # If it is an empty set, then the 'save' method will be omitted.
+        # If it is a non-empty set, then an MQTT message with ONLY the changed fields will be created and published.
+        # It should also be noted that it is necessary to use not an arbitrary set, but the 'update_fields' field
+        # attached to the instance, because it is used in some auxiliary functions.
+        # Moreover, the whole program is built assuming that this 'self.update_fields' field is present
+        # in instances of the “PublishingOnSaveModel” class.
+        # An instance "drags" this field with it through many transformations.
         # In the 'save' method, after saving, it gets reset and an empty set is ready for the next processing cycle.
+
         super().save(**kwargs)
 
         update_fields = kwargs.get("update_fields")
@@ -150,7 +150,7 @@ class PublishingOnSaveModel(models.Model):
     def total_parent_update(self, parent):
         parent_full_id = get_instance_full_id(parent)
         logger.debug(f"{parent_full_id}: Updating parent from the bulk 'save' method")
-        if hasattr(parent, "reeval_fields"):  # if it is an asset, all 'reeval_fields' should be reevaluated
+        if hasattr(parent, "reeval_fields"):  # if parent is an asset, all 'reeval_fields' should be reevaluated
             update_reeval_fields(parent, reeval_fields)
             logger.debug(f"{parent_full_id}: To be reevaluated: {reeval_fields}")
         if hasattr(parent, "next_upd_ts"):
