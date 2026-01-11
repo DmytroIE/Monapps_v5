@@ -85,7 +85,7 @@ class PublishingOnSaveModel(models.Model):
                 self.publish_on_mqtt(fields_to_publish, message_type)
         else:
             logger.debug(f"{get_instance_full_id(self)}: Updating from the bulk 'save' method")
-            self.publish_on_mqtt(set(), message_type)
+            self.publish_on_mqtt(self.published_fields, message_type)  # publish all
             if self.parent is not None:
                 self.total_parent_update(self.parent)
 
@@ -139,7 +139,7 @@ class PublishingOnSaveModel(models.Model):
         mqtt_pub_dict = {}
         mqtt_pub_dict["id"] = get_instance_full_id(self)
         mqtt_pub_dict["messageType"] = message_type
-
+        logger.debug(f"Fields to publish: {fields_to_publish}")
         for field in fields_to_publish:
             attr = getattr(self, field, None)
             camelized_field = humps.camelize(field)
